@@ -31,7 +31,9 @@ get that going as soon as possible! And, feel free to modify the coloration to y
 NOTE: If you prefer a 'dark mode' coloration style instead, I've also provided a metaf_dark.xml. Follow the instructions
 above for it, then also go to the Settings menu, then Style Configurator... and select Language: Global Styles, then select
 Style: Default Style, then swap the Foreground and Background colors in the 'Colour Style' box to make the default foreground
-white, and background black. Click Save & Close.
+white, and background black. Click Save & Close. (Although, while you're in there, I'd also recommend changing a few other
+styles' colors: 'Indent guideline style' Foreground (then 'More Colours...') RGB[81,81,81] and Background[0,0,0], 'Brace
+highlight style' Foreground[0,0,0] and Background[128,128,128], and 'Current line background'[40,40,96].)
 
 I have leveraged Notepad++'s ability to suggest auto-completions based upon file-content-so-far, which should make entering
 those long VirindiTank function names easier and less prone to error.
