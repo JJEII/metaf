@@ -35,6 +35,7 @@ metaf is a powerful meta/nav editor in an alternate format from that used by the
   - Simultaneously tab-in/out multiple lines
   - Native RegEx support
   - Auto-close braces, brackets, and parentheses, if desired
+  - Simultaneously comment/uncomment multiple lines
 * Custom syntax highlighting (keywords, operators, comments, VTank functions, etc.)
   - XML files are provided for regular and 'dark mode' metaf syntax highlighting
   - Optional/alternative code-folding possible
