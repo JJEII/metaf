@@ -1,4 +1,4 @@
-﻿/*
+/*
 metaf is a powerful meta/nav editor in an alternate format from that used by the VirindiTank addon to the game Asheron's Call.
 Copyright (C) 2020  J. Edwards
 
@@ -47,9 +47,9 @@ using System.Threading;     // other countries, with decimal numbers.
 namespace metaf
 {
 #if (_DBG_)
-	class myDebug { public static string[] args = { "__Maybe60W~0.af" };//"__Maybe60W.nav" }; }
+	class myDebug { public static string[] args = { "eskontrol.af" }; }//"__Maybe60W.nav" }; }
 #endif
-	class myVersion { public static string version = "METa Alternate Format (metaf), v.0.7.0.3     GPLv3 Copyright (C) 2020     J. Edwards"; }
+	class myVersion { public static string version = "METa Alternate Format (metaf), v.0.7.0.5     GPLv3 Copyright (C) 2020     J. Edwards"; }
 
 	public enum CTypeID {
 		Unassigned = -1,
@@ -191,16 +191,16 @@ namespace metaf
 		}
 		static public string m_SetStr(string s) // met set: grow the string (oD --> oDoD and cD --> cDcD)
 		{
-			string t = new Regex(rx.oD).Replace(s, rx.oD + rx.oD);
+			string t = new Regex(@"\" + rx.oD).Replace(s, rx.oD + rx.oD);
 			if (rx.oD.CompareTo(rx.cD) != 0)
-				t = new Regex(rx.cD).Replace(s, rx.cD + rx.cD);
+				t = new Regex(@"\" + rx.cD).Replace(t, rx.cD + rx.cD);
 			return t;
 		}
 		static public string m_GetStr(string s) // met get: shrink the string (oDoD --> oD and cDcD --> cD)
 		{
-			string t = new Regex(rx.oD + rx.oD).Replace(s, rx.oD);
+			string t = new Regex(@"\" + rx.oD + @"\" + rx.oD).Replace(s, rx.oD);
 			if (rx.oD.CompareTo(rx.cD) != 0)
-				t = new Regex(rx.cD + rx.cD).Replace(s, rx.cD);
+				t = new Regex(@"\" + rx.cD + @"\" + rx.cD).Replace(t, rx.cD);
 			return t;
 		}
 
@@ -238,15 +238,20 @@ get that going as soon as possible! And, feel free to modify the coloration to y
 NOTE: If you prefer a 'dark mode' coloration style instead, I've also provided a metaf_dark.xml. Follow the instructions
 above for it, then also go to the Settings menu, then Style Configurator... and select Language: Global Styles, then select
 Style: Default Style, then swap the Foreground and Background colors in the 'Colour Style' box to make the default foreground
-white, and background black. Click Save & Close.
+white, and background black. Click Save & Close. (Although, while you're in there, I'd also recommend changing a few other
+styles' colors: 'Indent guideline style' Foreground (then 'More Colours...') RGB[81,81,81] and Background[0,0,0]; 'Brace
+highlight style' Foreground[255,255,255] and Background[0,0,0]; 'Current line background'[28,28,66]; and 'Caret colour'
+[191,128,255].)
 
 I have leveraged Notepad++'s ability to suggest auto-completions based upon file-content-so-far, which should make entering
 those long VirindiTank function names easier and less prone to error.
 
-Notepad++ can also auto-close brackets, braces, and parentheses if you tell it to. (Go to the Settings menu, then to
-Preferences..., and select Auto-Completion in the list on the left, then select your preferences.)
+Notepad++ can auto-close brackets, braces, and parentheses if you tell it to. (Go to the Settings menu, then Preferences...,
+and select Auto-Completion in the list on the left, then select your preferences.)
 
-It can also tab-in/out multiple lines simultaneously. (Select them, then press tab or shift-tab.)
+It can tab-in/out multiple lines simultaneously. (Select them, then press tab or shift-tab.)
+
+It can simultaneously comment/uncomment multiple lines. (See the Edit menu, then Comment/Uncomment, and the Block options.)
 
 ~~ 2. WHY metaf?																											
 
@@ -1013,7 +1018,7 @@ coding your metas (especially the very long VT function names).
 ~~																															
 ";
 		public const string outputHeaderText =
-@"~~ FOR AUTO-COMPLETION ASSISTANCE: testvar getvar setvar touchvar clearallvars clearvar getcharintprop getchardoubleprop getcharquadprop getcharboolprop getcharstringprop getcharvital_base getcharvital_current getcharvital_buffedmax getcharskill_traininglevel getcharskill_base getcharskill_buffed getplayerlandcell getplayercoordinates wobjectgetplayer getisspellknown getcancastspell_hunt getcancastspell_buff actiontryequipanywand actiontrycastbyid actiontrycastbyidontarget wobjectfindininventorybytemplatetype wobjectfindininventorybyname wobjectfindininventorybynamerx getplayerlandcell getplayercoordinates coordinategetns coordinategetwe coordinategetz coordinatetostring coordinateparse coordinatedistancewithz coordinatedistanceflat wobjectgetphysicscoordinates wobjectgetphysicscoordinates wobjectgetname wobjectgetobjectclass wobjectgettemplatetype wobjectgetisdooropen wobjectfindnearestmonster wobjectfindnearestdoor wobjectfindnearestbyobjectclass wobjectfindininventorybytemplatetype wobjectfindininventorybyname wobjectfindininventorybynamerx wobjectgetselection wobjectgetplayer wobjectfindnearestbynameandobjectclass getobjectinternaltype actiontryselect actiontryuseitem actiontryapplyitem actiontrygiveitem actiontryequipanywand actiontrycastbyid actiontrycastbyidontarget chatbox chatboxpaste statushud statushudcolored uicontrol uigetcontrol uisetlable isfalse istrue iif randint cstr cstrf cnumber floor ceiling round abs getcharintprop getchardoubleprop getcharquadprop getcharboolprop coordinategetns coordinategetwe coordinategetz cstr strlen cstrf cnumber coordinatetostring coordinateparse wobjectgetname stopwatchcreate stopwatchstart stopwatchstop stopwatchelapsedseconds getobjectinternaltype
+@"~~ FOR AUTO-COMPLETION ASSISTANCE: testvar getvar setvar touchvar clearallvars clearvar getcharintprop getchardoubleprop getcharquadprop getcharboolprop getcharstringprop getisspellknown getcancastspell_hunt getcancastspell_buff getcharvital_base getcharvital_current getcharvital_buffedmax getcharskill_traininglevel getcharskill_base getcharskill_buffed getplayerlandcell getplayercoordinates coordinategetns coordinategetwe coordinategetz coordinatetostring coordinateparse coordinatedistancewithz coordinatedistanceflat wobjectgetphysicscoordinates wobjectgetname wobjectgetobjectclass wobjectgettemplatetype wobjectgetisdooropen wobjectfindnearestmonster wobjectfindnearestdoor wobjectfindnearestbyobjectclass wobjectfindininventorybytemplatetype wobjectfindininventorybyname wobjectfindininventorybynamerx wobjectgetselection wobjectgetplayer wobjectfindnearestbynameandobjectclass actiontryselect actiontryuseitem actiontryapplyitem actiontrygiveitem actiontryequipanywand actiontrycastbyid actiontrycastbyidontarget chatbox chatboxpaste statushud statushudcolored uigetcontrol uisetlabel isfalse istrue iif randint cstr strlen getobjectinternaltype cstrf stopwatchcreate stopwatchstart stopwatchstop stopwatchelapsedseconds cnumber floor ceiling round abs
 
 ~~																						
 ~~ File auto-generated by metaf, a program created by Eskarina of Morningthaw/Coldeve.	
@@ -1051,7 +1056,7 @@ coding your metas (especially the very long VT function names).
 ";
 
 		public const string outputNavHeaderText =
-@"~~ FOR AUTO-COMPLETION ASSISTANCE: testvar getvar setvar touchvar clearallvars clearvar getcharintprop getchardoubleprop getcharquadprop getcharboolprop getcharstringprop getcharvital_base getcharvital_current getcharvital_buffedmax getcharskill_traininglevel getcharskill_base getcharskill_buffed getplayerlandcell getplayercoordinates wobjectgetplayer getisspellknown getcancastspell_hunt getcancastspell_buff actiontryequipanywand actiontrycastbyid actiontrycastbyidontarget wobjectfindininventorybytemplatetype wobjectfindininventorybyname wobjectfindininventorybynamerx getplayerlandcell getplayercoordinates coordinategetns coordinategetwe coordinategetz coordinatetostring coordinateparse coordinatedistancewithz coordinatedistanceflat wobjectgetphysicscoordinates wobjectgetphysicscoordinates wobjectgetname wobjectgetobjectclass wobjectgettemplatetype wobjectgetisdooropen wobjectfindnearestmonster wobjectfindnearestdoor wobjectfindnearestbyobjectclass wobjectfindininventorybytemplatetype wobjectfindininventorybyname wobjectfindininventorybynamerx wobjectgetselection wobjectgetplayer wobjectfindnearestbynameandobjectclass getobjectinternaltype actiontryselect actiontryuseitem actiontryapplyitem actiontrygiveitem actiontryequipanywand actiontrycastbyid actiontrycastbyidontarget chatbox chatboxpaste statushud statushudcolored uicontrol uigetcontrol uisetlable isfalse istrue iif randint cstr cstrf cnumber floor ceiling round abs getcharintprop getchardoubleprop getcharquadprop getcharboolprop coordinategetns coordinategetwe coordinategetz cstr strlen cstrf cnumber coordinatetostring coordinateparse wobjectgetname stopwatchcreate stopwatchstart stopwatchstop stopwatchelapsedseconds getobjectinternaltype
+@"~~ FOR AUTO-COMPLETION ASSISTANCE: testvar getvar setvar touchvar clearallvars clearvar getcharintprop getchardoubleprop getcharquadprop getcharboolprop getcharstringprop getisspellknown getcancastspell_hunt getcancastspell_buff getcharvital_base getcharvital_current getcharvital_buffedmax getcharskill_traininglevel getcharskill_base getcharskill_buffed getplayerlandcell getplayercoordinates coordinategetns coordinategetwe coordinategetz coordinatetostring coordinateparse coordinatedistancewithz coordinatedistanceflat wobjectgetphysicscoordinates wobjectgetname wobjectgetobjectclass wobjectgettemplatetype wobjectgetisdooropen wobjectfindnearestmonster wobjectfindnearestdoor wobjectfindnearestbyobjectclass wobjectfindininventorybytemplatetype wobjectfindininventorybyname wobjectfindininventorybynamerx wobjectgetselection wobjectgetplayer wobjectfindnearestbynameandobjectclass actiontryselect actiontryuseitem actiontryapplyitem actiontrygiveitem actiontryequipanywand actiontrycastbyid actiontrycastbyidontarget chatbox chatboxpaste statushud statushudcolored uigetcontrol uisetlabel isfalse istrue iif randint cstr strlen getobjectinternaltype cstrf stopwatchcreate stopwatchstart stopwatchstop stopwatchelapsedseconds cnumber floor ceiling round abs
 
 ~~																						
 ~~ File auto-generated by metaf, a program created by Eskarina of Morningthaw/Coldeve.	
