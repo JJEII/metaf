@@ -32,16 +32,19 @@ NOTE: If you prefer a 'dark mode' coloration style instead, I've also provided a
 above for it, then also go to the Settings menu, then Style Configurator... and select Language: Global Styles, then select
 Style: Default Style, then swap the Foreground and Background colors in the 'Colour Style' box to make the default foreground
 white, and background black. Click Save & Close. (Although, while you're in there, I'd also recommend changing a few other
-styles' colors: 'Indent guideline style' Foreground (then 'More Colours...') RGB[81,81,81] and Background[0,0,0], 'Brace
-highlight style' Foreground[0,0,0] and Background[128,128,128], and 'Current line background'[40,40,96].)
+styles' colors: 'Indent guideline style' Foreground (then 'More Colours...') RGB[81,81,81] and Background[0,0,0]; 'Brace
+highlight style' Foreground[255,255,255] and Background[0,0,0]; 'Current line background'[28,28,66]; and 'Caret colour'
+[191,128,255].)
 
 I have leveraged Notepad++'s ability to suggest auto-completions based upon file-content-so-far, which should make entering
 those long VirindiTank function names easier and less prone to error.
 
-Notepad++ can also auto-close brackets, braces, and parentheses if you tell it to. (Go to the Settings menu, then to
-Preferences..., and select Auto-Completion in the list on the left, then select your preferences.)
+Notepad++ can auto-close brackets, braces, and parentheses if you tell it to. (Go to the Settings menu, then Preferences...,
+and select Auto-Completion in the list on the left, then select your preferences.)
 
-It can also tab-in/out multiple lines simultaneously. (Select them, then press tab or shift-tab.)
+It can tab-in/out multiple lines simultaneously. (Select them, then press tab or shift-tab.)
+
+It can simultaneously comment/uncomment multiple lines. (See the Edit menu, then Comment/Uncomment, and the Block options.)
 
 ~~ 2. WHY metaf?																											
 
