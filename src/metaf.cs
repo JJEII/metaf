@@ -34,6 +34,25 @@ to re-write it "properly" from scratch.
  
 ~ J. Edwards, aka Eskarina of Morningthaw/Coldeve
 
+
+
+THIS FILE'S ORGANIZATION, ROUGHLY:
+	* A bunch of miscellaneous stuff:
+		- Command-line-relevant info
+		- Enum definitions
+		- "MyException" and "FileLines" classes
+		- Tons of important strings
+			. Regexes and error messages
+			. Huge output text strings (meta/nav headers, readme file, reference file)
+		- An abstract "ImportExport" inherited class
+	* All the Condition operation classes, in in-game order (starts with abstract inherited class)
+	* All the Action operation classes, in in-game order (starts with abstract inherited class)
+	* All the NavNode classes (starts with abstract inherited class)
+	* Nav class
+	* Rule class
+	* State class
+	* Meta class
+	* Main
 */
 
 //#define _DBG_
@@ -49,7 +68,13 @@ namespace metaf
 #if (_DBG_)
 	class myDebug { public static string[] args = { "eskontrol.af" }; }//"__Maybe60W.nav" }; }
 #endif
-	class myVersion { public static string version = "METa Alternate Format (metaf), v.0.7.0.5     GPLv3 Copyright (C) 2020     J. Edwards"; }
+	class CmdLnParms {
+		public static string version = "METa Alternate Format (metaf), v.0.7.0.6     GPLv3 Copyright (C) 2020     J. Edwards";
+		public static string newFileName = "__NEW__.af";
+		public static string newnavFileName = "__NEWNAV__.af";
+		public static string readmeFileName = "metafREADME.af";
+		public static string refFileName = "metafReference.af";
+	}
 
 	public enum CTypeID {
 		Unassigned = -1,
@@ -204,10 +229,244 @@ namespace metaf
 			return t;
 		}
 
-		public const string helpText =
+		public const string oD = "{"; // opening string delimiter
+		public const string cD = "}"; // closing string delimiter
+
+		public static string __2EOL = @"\s*(~~.*)?$";//new Regex( , RegexOptions.Compiled);
+		public static Regex R__2EOL = new Regex(__2EOL, RegexOptions.Compiled);
+		public static Regex R__LN = new Regex(@"^\s*(~~.*)?$", RegexOptions.Compiled);
+		public static Regex R_Empty = new Regex(@"^$", RegexOptions.Compiled);
+
+		// "Core" regexes
+		public const string _D = @"[+\-]?(([1-9][0-9]*\.|[0-9]?\.)([0-9]+([eE][+\-]?[0-9]+)|[0-9]+)|([1-9][0-9]*|0))";
+		public const string _I = @"[+\-]?([1-9][0-9]*|0)";
+		public const string _H = @"[A-F0-9]{8}";
+		// [o]([^oc]|[oo]|[cc])*[c]
+		public const string _S = @"[\" + rx.oD + @"]([^\" + rx.oD + @"\" + rx.cD + @"]|\" + rx.oD + @"\" + rx.oD + @"|\" + rx.cD + @"\" + rx.cD + @")*[\" + rx.cD + @"]";
+		public const string _L = @"[a-zA-Z_][a-zA-Z0-9_]*"; // literal	// @"(?<l> _____ |"+rx.fieldEmpty+")"
+
+		private static Dictionary<string, string> typeInfo = new Dictionary<string, string>()
+		{
+			["_D"] = "Doubles are decimal numbers.",
+			["_I"] = "Integers are whole numbers.",
+			["_S"] = "Strings must be enclosed in " + rx.oD + (rx.oD.CompareTo(rx.cD) != 0 ? " " + rx.cD : "") + @" delimiters; any inside them must be escaped by doubling, i.e., single " + rx.oD + @" is not allowed inside metaf strings, and " + rx.oD + rx.oD + @" in metaf results in " + rx.oD + @" in met" + (rx.oD.CompareTo(rx.cD) != 0 ? @" (same for " + rx.cD + ")" : "") + @". Different strings require at least one whitespace character between their delimiters, separating them.",
+			//_H omitted
+			["_L"] = "A literal starts with a letter or underscore, followed by letters, digits, or underscores; no whitespace, and no string delimiters (" + rx.oD + (rx.oD.CompareTo(rx.cD) != 0 ? rx.cD : "") + ")!"
+		};
+
+		public static Dictionary<string, Regex> getLeadIn = new Dictionary<string, Regex>()
+		{
+			["StateIfDoNav"] = new Regex(@"^(?<tabs>[\t]*)(?<type>STATE\:|IF\:|DO\:|NAV\:)", RegexOptions.Compiled),
+			["AnyConditionOp"] = new Regex(@"^(?<tabs>[\t]*)\s*(?<op>Never|Always|All|Any|ChatMatch|MainSlotsLE|SecsInStateGE|NavEmpty|Death|VendorOpen|VendorClosed|ItemCountLE|ItemCountGE|MobsInDist_Name|MobsInDist_Priority|NeedToBuff|NoMobsInDist|BlockE|CellE|IntoPortal|ExitPortal|Not|PSecsInStateGE|SecsOnSpellGE|BuPercentGE|DistToRteGE|Expr|ChatCapture)", RegexOptions.Compiled),
+			["AnyActionOp"] = new Regex(@"^(?<tabs>[\t]*)\s*(?<op>None|SetState|DoAll|EmbedNav|CallState|Return|DoExpr|ChatExpr|Chat|SetWatchdog|ClearWatchdog|GetOpt|SetOpt|CreateView|DestroyView|DestroyAllViews)", RegexOptions.Compiled),
+			["AnyNavNodeType"] = new Regex(@"^\t(?<type>flw|pnt|rcl|pau|cht|vnd|ptl|tlk|chk|jmp)", RegexOptions.Compiled),
+			["GuessOpSwap"] = new Regex(@"^\t(?<op>DoAll|DoExpr|All|Expr)", RegexOptions.Compiled) // I expect All and Expr to often be accidentally used instead of DoAll and DoExpr; help the users out...
+		};
+
+		public static Dictionary<string, Regex> getParms = new Dictionary<string, Regex>()
+		{
+			["STATE:"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
+			["NAV:"] = new Regex(@"^\s+(?<l>" + _L + @")\s+(?<l2>circular|linear|once|follow)$", RegexOptions.Compiled),
+
+			["Never"] = R_Empty,
+			["Always"] = R_Empty,
+			["All"] = R_Empty,
+			["Any"] = R_Empty,
+			["ChatMatch"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
+			["MainSlotsLE"] = new Regex(@"^\s+(?<i>" + _I + ")$", RegexOptions.Compiled),
+			["SecsInStateGE"] = new Regex(@"^\s+(?<i>" + _I + ")$", RegexOptions.Compiled),
+			["NavEmpty"] = R_Empty,
+			["Death"] = R_Empty,
+			["VendorOpen"] = R_Empty,
+			["VendorClosed"] = R_Empty,
+			["ItemCountLE"] = new Regex(@"^\s+(?<i>" + _I + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
+			["ItemCountGE"] = new Regex(@"^\s+(?<i>" + _I + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
+			["MobsInDist_Name"] = new Regex(@"^\s+(?<i>" + _I + @")\s+(?<d>" + _D + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
+			["MobsInDist_Priority"] = new Regex(@"^\s+(?<i>" + _I + @")\s+(?<d>" + _D + @")\s+(?<i2>" + _I + ")$", RegexOptions.Compiled),
+			["NeedToBuff"] = R_Empty,
+			["NoMobsInDist"] = new Regex(@"^\s+(?<d>" + _D + ")$", RegexOptions.Compiled),
+			["BlockE"] = new Regex(@"^\s+(?<h>" + _H + ")$", RegexOptions.Compiled), 
+			["CellE"] = new Regex(@"^\s+(?<h>" + _H + ")$", RegexOptions.Compiled), 
+			["IntoPortal"] = R_Empty,
+			["ExitPortal"] = R_Empty,
+			//["Not"] = CTypeID.Not,
+			["PSecsInStateGE"] = new Regex(@"^\s+(?<i>" + _I + ")$", RegexOptions.Compiled),
+			["SecsOnSpellGE"] = new Regex(@"^\s+(?<i>" + _I + @")\s+(?<i2>" + _I + ")$", RegexOptions.Compiled), 
+			["BuPercentGE"] = new Regex(@"^\s+(?<i>" + _I + ")$", RegexOptions.Compiled),
+			["DistToRteGE"] = new Regex(@"^\s+(?<d>" + _D + ")$", RegexOptions.Compiled),
+			["Expr"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
+			["ChatCapture"] = new Regex(@"^\s+(?<s>" + _S + @")\s+(?<s2>" + _S + ")$", RegexOptions.Compiled), 
+
+			["None"] = R_Empty,
+			["SetState"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
+			["Chat"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
+			["DoAll"] = R_Empty,
+			["EmbedNav"] = new Regex(@"^\s+(?<l>" + _L + @")\s+(?<s>" + _S + @")(\s+(?<xf>" + _S + @"))?$", RegexOptions.Compiled), 
+			["CallState"] = new Regex(@"^\s+(?<s>" + _S + @")\s+(?<s2>" + _S + ")$", RegexOptions.Compiled), 
+			["Return"] = R_Empty,
+			["DoExpr"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
+			["ChatExpr"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
+			["SetWatchdog"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
+			["ClearWatchdog"] = R_Empty,
+			["GetOpt"] = new Regex(@"^\s+(?<s>" + _S + @")\s+(?<s2>" + _S + ")$", RegexOptions.Compiled), 
+			["SetOpt"] = new Regex(@"^\s+(?<s>" + _S + @")\s+(?<s2>" + _S + ")$", RegexOptions.Compiled), 
+			["CreateView"] = new Regex(@"^\s+(?<s>" + _S + @")\s+(?<s2>" + _S + ")$", RegexOptions.Compiled), 
+			["DestroyView"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
+			["DestroyAllViews"] = R_Empty,
+
+			["flw"] = new Regex(@"^\s+(?<h>" + _H + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
+			["pnt"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")$", RegexOptions.Compiled), 
+			["rcl"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
+			["pau"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<d4>" + _D + ")$", RegexOptions.Compiled), 
+			["cht"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
+			["vnd"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<h>" + _H + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
+			["ptl"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<d4>" + _D + @")\s+(?<d5>" + _D + @")\s+(?<d6>" + _D + @")\s+(?<i>" + _I + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
+			["tlk"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<d4>" + _D + @")\s+(?<d5>" + _D + @")\s+(?<d6>" + _D + @")\s+(?<i>" + _I + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
+			["chk"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")$", RegexOptions.Compiled), 
+			["jmp"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<d4>" + _D + @")\s+(?<s>" + _S + @")\s+(?<d5>" + _D + ")$", RegexOptions.Compiled), 
+
+			["ENavXF"] = new Regex(@"^\s*(?<a>" + _D + @")\s+(?<b>" + _D + @")\s+(?<c>" + _D + @")\s+(?<d>" + _D + @")\s+(?<e>" + _D + @")\s+(?<f>" + _D + @")\s+(?<g>" + _D + @")\s*$", RegexOptions.Compiled)
+		};
+
+		public static Dictionary<string, string> getInfo = new Dictionary<string, string>()
+		{
+			["STATE:"] = "Required: 'STATE:' must be at the start of the line, followed by a string state name. (" + rx.typeInfo["_S"] + ") Every state must contain at least one Rule (IF-DO pair) with proper tabbing in.",
+			["IF:"] = "Required: 'IF:' must be tabbed in once, followed by a Condition operation, on the same line.",
+			["DO:"] = "Required: 'DO:' must be tabbed in twice, followed by an Action operation, on the same line.",
+			["NAV:"] = "Required: 'NAV:' must be at the start of the line, followed by a literal tag and a literal nav type (circular, linear, once, or follow). (" + rx.typeInfo["_L"] + ")",
+
+			["Generic"] = "Syntax error. (General tips: double-check tabbing and state/rule structure (IF-DO pairs?), and ensure there are no stray characters, and that you're using " + rx.oD + (rx.oD.CompareTo(rx.cD) != 0 ? " " + rx.cD : "") + @" string delimiters properly.)",
+
+			["Never"] = "'Never' requires: no inputs.",
+			["Always"] = "'Always' requires: no inputs.",
+			["All"] = "'All' requires: no same-line inputs. Enclosed operations must appear on following lines, tabbed in once more.",
+			["Any"] = "'Any' requires: no same-line inputs. Enclosed operations must appear on following lines, tabbed in once more.",
+			["ChatMatch"] = "'ChatMatch' requires one input: a string 'chat regex' to match. (" + rx.typeInfo["_S"] + ")",
+			["MainSlotsLE"] = "'MainSlotsLE' requires one input: an integer slot-count. (" + rx.typeInfo["_I"] + ")",
+			["SecsInStateGE"] = "'SecsInStateGE' requires one input: an integer time (in seconds). (" + rx.typeInfo["_I"] + ")",
+			["NavEmpty"] = "'NavEmpty' requires: no inputs.",
+			["Death"] = "'Death' requires: no inputs.",
+			["VendorOpen"] = "'VendorOpen' requires: no inputs.",
+			["VendorClosed"] = "'VendorClosed' requires: no inputs.",
+			["ItemCountLE"] = "'ItemCountLE' requires two inputs: an integer item-count, a string item-name. (" + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
+			["ItemCountGE"] = "'ItemCountGE' requires two inputs: an integer item-count, a string item-name. (" + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
+			["MobsInDist_Name"] = "'MobsInDist_Name' requires three inputs: an integer monster-count, a double distance, a string monster-name. (" + rx.typeInfo["_I"] + " " + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")",
+			["MobsInDist_Priority"] = "'MobsInDist_Priority' requires three inputs: an integer monster-count, a double distance, an integer monster-priority. (" + rx.typeInfo["_I"] + " " + rx.typeInfo["_D"] + ")",
+			["NeedToBuff"] = "'NeedToBuff' requires: no inputs.",
+			["NoMobsInDist"] = "'NoMobsInDist' requires one input: a double distance. (" + rx.typeInfo["_D"] + ")",
+			["BlockE"] = "'BlockE' requires one input: an integer landblock (expressed in hexidecimal). (" + rx.typeInfo["_I"] + ")",
+			["CellE"] = "'CellE' requires one input: an integer landcell (expressed in hexidecimal). (" + rx.typeInfo["_I"] + ")",
+			["IntoPortal"] = "'IntoPortal' requires: no inputs.",
+			["ExitPortal"] = "'ExitPortal' requires: no inputs.",
+			["Not"] = "'Not' requires: a following operation, on the same line.",
+			["PSecsInStateGE"] = "'PSecsInStateGE' requires one input: an integer burden. (" + rx.typeInfo["_I"] + ")",
+			["SecsOnSpellGE"] = "'SecsOnSpellGE' requires two inputs: an integer time (in seconds), an integer SpellID. (" + rx.typeInfo["_I"] + ")",
+			["BuPercentGE"] = "'BuPercentGE' requires one input: an integer burden. (" + rx.typeInfo["_I"] + ")",
+			["DistToRteGE"] = "'DistToRteGE' requires one input: a double distance. (" + rx.typeInfo["_D"] + ")",
+			["Expr"] = "'Expr' requires one input: a string 'code expression' to evaluate. (" + rx.typeInfo["_S"] + ")",
+			["ChatCapture"] = "'ChatCapture' requires two inputs: a string 'chat regex' to match/capture, a string 'color ID list'. (" + rx.typeInfo["_S"] + ")",
+
+			["None"] = "'None' requires: no inputs.",
+			["SetState"] = "'SetState' requires one input: a string state name. (" + rx.typeInfo["_S"] + ")",
+			["Chat"] = "'Chat' requires one input: a string to send to chat. (" + rx.typeInfo["_S"] + ")",
+			["DoAll"] = "'DoAll' requires: no same-line inputs. Enclosed operations must appear on following lines, tabbed in once more.",
+			["EmbedNav"] = "'EmbedNav' requires two inputs: a literal tag, a string name. It can also take an optional string input that must contain seven space-separated doubles that represent a mathematical transform of the nav points: a b c d e f g, where newX=aX+bY+e, newY=cX+dY+f, and newZ=Z+g.  (" + rx.typeInfo["_L"] + " " + rx.typeInfo["_S"] + " " + rx.typeInfo["_D"] + ")",
+			["CallState"] = "'CallState' requires two inputs: a string 'go-to' state name, a string 'return-to' state name. (" + rx.typeInfo["_S"] + ")",
+			["Return"] = "'Return' requires: no inputs.",
+			["DoExpr"] = "'DoExpr' requires one input: a string 'code expression' to evaluate. (" + rx.typeInfo["_S"] + ")",
+			["ChatExpr"] = "'ChatExpr' requires one input: a string 'code expression' to evaluate then send as chat. (" + rx.typeInfo["_S"] + ")",
+			["SetWatchdog"] = "'SetWatchdog' requires three inputs: a double distance, a double time (in seconds), a string state name. (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")",
+			["ClearWatchdog"] = "'ClearWatchdog' requires: no inputs.",
+			["GetOpt"] = "'GetOpt' requires two inputs: a string VT-option, a string variable-name. (" + rx.typeInfo["_S"] + ")",
+			["SetOpt"] = "'SetOpt' requires two inputs: a string VT-option, a string variable-name. (" + rx.typeInfo["_S"] + ")",
+			["CreateView"] = "'CreateView' requires two inputs: a string view, a string XML. (" + rx.typeInfo["_S"] + ")",
+			["DestroyView"] = "'DestroyView' requires one input: a string view. (" + rx.typeInfo["_S"] + ")",
+			["DestroyAllViews"] = "'DestroyAllViews' requires: no inputs.",
+
+			["flw"] = "'flw' requires two inputs: integer target GUID (in hexidecimal), string target name. (" + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
+			["pnt"] = "'pnt' requires hree inputs: double xyz-coordinates. (" + rx.typeInfo["_D"] + ")",
+			["rcl"] = "'rcl' requires four inputs: double xyz-coordinates, string recall spell name (exact). (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")\nRecognized recall spell names:\n* " + rx.oD + "Primary Portal Recall" + rx.cD + "\n* " + rx.oD + "Secondary Portal Recall" + rx.cD + "\n* " + rx.oD + "Lifestone Recall" + rx.cD + "\n* " + rx.oD + "Portal Recall" + rx.cD + "\n* " + rx.oD + "Recall Aphus Lassel" + rx.cD + "\n* " + rx.oD + "Recall the Sanctuary" + rx.cD + "\n* " + rx.oD + "Recall to the Singularity Caul" + rx.cD + "\n* " + rx.oD + "Glenden Wood Recall" + rx.cD + "\n* " + rx.oD + "Aerlinthe Recall" + rx.cD + "\n* " + rx.oD + "Mount Lethe Recall" + rx.cD + "\n* " + rx.oD + "Ulgrim's Recall" + rx.cD + "\n* " + rx.oD + "Bur Recall" + rx.cD + "\n* " + rx.oD + "Paradox-touched Olthoi Infested Area Recall" + rx.cD + "\n* " + rx.oD + "Call of the Mhoire Forge" + rx.cD + "\n* " + rx.oD + "Lost City of Neftet Recall" + rx.cD + "\n* " + rx.oD + "Return to the Keep" + rx.cD + "\n* " + rx.oD + "Facility Hub Recall" + rx.cD + "\n* " + rx.oD + "Colosseum Recall" + rx.cD + "\n* " + rx.oD + "Gear Knight Invasion Area Camp Recall" + rx.cD + "\n* " + rx.oD + "Rynthid Recall" + rx.cD + "\n* " + rx.oD + "Lifestone Sending" + rx.cD,
+			["pau"] = "'pau' requires four inputs: double xyz-coordinates, double pause time (in seconds). (" + rx.typeInfo["_D"] + ")",
+			["cht"] = "'cht' requires four inputs: double xyz-coordinates, string recall spell name (exact). (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")",
+			["vnd"] = "'vnd' requires five inputs: double xyz-coordinates, integer vendor GUID (in hexidecimal), string vendor name. (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
+			["ptl"] = "'ptl' requires eight inputs: double xyz-coordinates, double xyz-coordinates of object, integer ObjectClass (portal=14, npc=37), string object name. (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
+			["tlk"] = "'tlk' requires eight inputs: double xyz-coordinates, double xyz-coordinates of object, integer ObjectClass (npc=37), string object name. (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
+			["chk"] = "'chk' requires three inputs: double xyz-coordinates. (" + rx.typeInfo["_D"] + ")",
+			["jmp"] = "'jmp' requires six inputs: double xyz-coordinates, double heading (in degrees), string holdShift (" + rx.oD + "True" + rx.cD + " or " + rx.oD + "False" + rx.cD + "), double time-delay (in milliseconds). (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")",
+
+			["ENavXF"] = "When present, the transform string input (third input) for EmbedNav must contain seven space-separated doubles, representing a mathematical transform of the nav points: a b c d e f g, where newX=aX+bY+e, newY=cX+dY+f, and newZ=Z+g."
+		};
+	}
+
+	class OutputText
+	{
+		public const string metaHeader =
+@"~~ FOR AUTO-COMPLETION ASSISTANCE: testvar getvar setvar touchvar clearallvars clearvar getcharintprop getchardoubleprop getcharquadprop getcharboolprop getcharstringprop getisspellknown getcancastspell_hunt getcancastspell_buff getcharvital_base getcharvital_current getcharvital_buffedmax getcharskill_traininglevel getcharskill_base getcharskill_buffed getplayerlandcell getplayercoordinates coordinategetns coordinategetwe coordinategetz coordinatetostring coordinateparse coordinatedistancewithz coordinatedistanceflat wobjectgetphysicscoordinates wobjectgetname wobjectgetobjectclass wobjectgettemplatetype wobjectgetisdooropen wobjectfindnearestmonster wobjectfindnearestdoor wobjectfindnearestbyobjectclass wobjectfindininventorybytemplatetype wobjectfindininventorybyname wobjectfindininventorybynamerx wobjectgetselection wobjectgetplayer wobjectfindnearestbynameandobjectclass actiontryselect actiontryuseitem actiontryapplyitem actiontrygiveitem actiontryequipanywand actiontrycastbyid actiontrycastbyidontarget chatbox chatboxpaste statushud statushudcolored uigetcontrol uisetlabel isfalse istrue iif randint cstr strlen getobjectinternaltype cstrf stopwatchcreate stopwatchstart stopwatchstop stopwatchelapsedseconds cnumber floor ceiling round abs
+
+~~																						
+~~ File auto-generated by metaf, a program created by Eskarina of Morningthaw/Coldeve.	
+~~																						
+~~ All recognized structural designators:												
+~~		STATE:				DO:															
+~~		IF:					NAV:														
+~~																						
+~~ All recognized CONDITION (IF:) operation keywords:									
+~~		Never				NavEmpty			MobsInDist_Priority		Not				
+~~		Always				Death				NeedToBuff				PSecsInStateGE	
+~~		All					VendorOpen			NoMobsInDist			SecsOnSpellGE	
+~~		Any					VendorClosed		BlockE					BuPercentGE		
+~~		ChatMatch			ItemCountLE			CellE					DistToRteGE		
+~~		MainSlotsLE			ItemCountGE			IntoPortal				Expr			
+~~		SecsInStateGE		MobsInDist_Name		ExitPortal				ChatCapture		
+~~																						
+~~ All recognized ACTION (DO:) operation keywords:										
+~~		None				EmbedNav			ChatExpr				SetOpt			
+~~		SetState			CallState			SetWatchdog				CreateView		
+~~		Chat				Return				ClearWatchdog			DestroyView		
+~~		DoAll				DoExpr				GetOpt					DestroyAllViews	
+~~																						
+~~ All recognized NAV types:															
+~~		circular			follow														
+~~		linear				once														
+~~																						
+~~ All recognized NAV NODE types:														
+~~		flw					vnd															
+~~		pnt					ptl															
+~~		rcl					tlk															
+~~		pau					chk															
+~~		cht					jmp															
+~~ 																						
+";
+
+		public const string navHeader =
+@"~~ FOR AUTO-COMPLETION ASSISTANCE: testvar getvar setvar touchvar clearallvars clearvar getcharintprop getchardoubleprop getcharquadprop getcharboolprop getcharstringprop getisspellknown getcancastspell_hunt getcancastspell_buff getcharvital_base getcharvital_current getcharvital_buffedmax getcharskill_traininglevel getcharskill_base getcharskill_buffed getplayerlandcell getplayercoordinates coordinategetns coordinategetwe coordinategetz coordinatetostring coordinateparse coordinatedistancewithz coordinatedistanceflat wobjectgetphysicscoordinates wobjectgetname wobjectgetobjectclass wobjectgettemplatetype wobjectgetisdooropen wobjectfindnearestmonster wobjectfindnearestdoor wobjectfindnearestbyobjectclass wobjectfindininventorybytemplatetype wobjectfindininventorybyname wobjectfindininventorybynamerx wobjectgetselection wobjectgetplayer wobjectfindnearestbynameandobjectclass actiontryselect actiontryuseitem actiontryapplyitem actiontrygiveitem actiontryequipanywand actiontrycastbyid actiontrycastbyidontarget chatbox chatboxpaste statushud statushudcolored uigetcontrol uisetlabel isfalse istrue iif randint cstr strlen getobjectinternaltype cstrf stopwatchcreate stopwatchstart stopwatchstop stopwatchelapsedseconds cnumber floor ceiling round abs
+
+~~																						
+~~ File auto-generated by metaf, a program created by Eskarina of Morningthaw/Coldeve.	
+~~																						
+~~ All recognized structural designators in a NAV-ONLY file:							
+~~		NAV:																			
+~~																						
+~~ All recognized NAV types:															
+~~		circular			follow														
+~~		linear				once														
+~~																						
+~~ All recognized NAV NODE types:														
+~~		flw					vnd															
+~~		pnt					ptl															
+~~		rcl					tlk															
+~~		pau					chk															
+~~		cht					jmp															
+~~ 																						
+
+~~ 																						
+~~ 				REMEMBER THAT NAV-ONLY FILES MUST CONTAIN EXACTLY ONE NAV!				
+~~ 																						
+";
+		public const string readme =
 @"~~																															
 ~~		METa Alternate Format																					Created by	
-~~			documentation																						 Eskarina	
+~~			   README																							 Eskarina	
 ~~																															
 
 ~~											
@@ -218,9 +477,9 @@ namespace metaf
 ~~		3. GETTING STARTED					
 ~~		4. META STRUCTURE					
 ~~		5. COMMENTS, STRINGS, MISCELLANEOUS	
-~~		6. QUICK REFERENCE					
-~~		7. FULL REFERENCE					
-~~		8. VIRINDITANK FUNCTIONS			
+~~		6. QUICK REFERENCE (moved)			
+~~		7. FULL REFERENCE (moved)			
+~~		8. VIRINDITANK FUNCTIONS (moved)	
 ~~											
 
 ~~ 1. VISUAL CODING ASSISTANCE																								
@@ -324,16 +583,16 @@ you're actively developing a meta and repeatedly translating it to load in-game.
 There is also a command line interface, and it just takes an input file name, followed (optionally) by an output file name.
 If you use that instead, it will output to the specified file, whether or not it already exists. (So, be careful.)
 
-The command line can take four other parameters as well: 'metaf -help' recreates this help file; 'metaf -new' creates a
-blank template .af file that has the header text in it, ready for coding a meta; 'metaf -newnav' does the same for a
-'nav .af'; 'metaf -version' outputs metaf's current version.
+The command line can take four other parameters as well: 'metaf -help' recreates this help file and the metaf reference
+file; 'metaf -new' creates a blank template .af file that has the meta-file header text in it, ready for coding a meta;
+'metaf -newnav' does the same, but for a 'nav .af'; 'metaf -version' outputs metaf's current version.
 
 I have mapped all the in-game meta operations to a set of recognized text commands in metaf, used for translating back into
 .met format. Sections 6 and 7 detail them.
 
-TIP: If you're not sure how to express something in metaf that can be done directly in VirindiTank, then create it there,
-then export it to the metaf format, and see what it looks like! In fact, that is my recommended first step for getting
-started: export a .met to .af and have a look. However, I hope my references below generally provide sufficient explanations.
+TIP: My recommended first step for getting started is to export a .met file to .af and have a look at it. Generally, if you
+are stumped on how to express something in metaf that can be done directly in VirindiTank, then create it there, then export
+it to .af to see what it looks like. (I hope my metafReference.af file usually provides sufficient explanations, though.)
 
 ~~ 4. META STRUCTURE																										
 
@@ -427,6 +686,47 @@ coding your metas (especially the very long VT function names).
 
 ~~ 																															
 ~~ 6. QUICK REFERENCE																										
+~~ 																															
+
+	(Moved to metafReference.af. Run 'metaf -help' if you don't have that file.)
+
+~~																															
+~~ 7. FULL REFERENCE																										
+~~																															
+
+	(Moved to metafReference.af. Run 'metaf -help' if you don't have that file.)
+
+~~																															
+~~ 8. VIRINDITANK FUNCTIONS																									
+~~																															
+
+	(Moved to metafReference.af. Run 'metaf -help' if you don't have that file.)
+
+~~																															
+~~	I hope you find metaf helpful in your meta-making adventures!   ~ Eskarina												
+~~																															
+
+~~																															
+~~		METa Alternate Format																					Created by	
+~~			   README																							 Eskarina	
+~~																															";
+
+		public const string reference =
+@"~~																															
+~~		METa Alternate Format																					Created by	
+~~			  REFERENCE																							 Eskarina	
+~~																															
+
+~~									
+~~	TABLE OF CONTENTS:				
+~~									
+~~		1. QUICK REFERENCE			
+~~		2. FULL REFERENCE			
+~~		3. VIRINDITANK FUNCTIONS	
+~~									
+
+~~ 																															
+~~ 1. QUICK REFERENCE																										
 ~~ 																															
 
 	~~ Data-type abbreviations:		
@@ -530,7 +830,7 @@ coding your metas (especially the very long VT function names).
 			   Nav Jump - jmp   d X   d Y   d Z   d HeadingInDegrees   {s HoldShift (True|False)}   d Delay (in ms)
 
 ~~																															
-~~ 7. FULL REFERENCE																										
+~~ 2. FULL REFERENCE																										
 ~~																															
 
 	~~ Miscellanous																											
@@ -933,7 +1233,7 @@ coding your metas (especially the very long VT function names).
 			   Nav Jump - jmp   d X   d Y   d Z   d HeadingInDegrees   {s HoldShift (True|False)}   d Delay (in ms)
 
 ~~																															
-~~ 8. VIRINDITANK FUNCTIONS					http://www.virindi.net/wiki/index.php/Meta_Expressions#Function_Information		
+~~ 3. VIRINDITANK FUNCTIONS					http://www.virindi.net/wiki/index.php/Meta_Expressions#Function_Information		
 ~~																															
 
 	~~ VARIABLES																											
@@ -1009,244 +1309,10 @@ coding your metas (especially the very long VT function names).
 		getobjectinternaltype[obj]  (returns 0=none, 1=number, 3=string, 7=object)
 
 ~~																															
-~~	I hope you find metaf helpful in your meta-making adventures!   ~ Eskarina												
-~~																															
-
-~~																															
 ~~		METa Alternate Format																					Created by	
-~~			documentation																						 Eskarina	
-~~																															
-";
-		public const string outputHeaderText =
-@"~~ FOR AUTO-COMPLETION ASSISTANCE: testvar getvar setvar touchvar clearallvars clearvar getcharintprop getchardoubleprop getcharquadprop getcharboolprop getcharstringprop getisspellknown getcancastspell_hunt getcancastspell_buff getcharvital_base getcharvital_current getcharvital_buffedmax getcharskill_traininglevel getcharskill_base getcharskill_buffed getplayerlandcell getplayercoordinates coordinategetns coordinategetwe coordinategetz coordinatetostring coordinateparse coordinatedistancewithz coordinatedistanceflat wobjectgetphysicscoordinates wobjectgetname wobjectgetobjectclass wobjectgettemplatetype wobjectgetisdooropen wobjectfindnearestmonster wobjectfindnearestdoor wobjectfindnearestbyobjectclass wobjectfindininventorybytemplatetype wobjectfindininventorybyname wobjectfindininventorybynamerx wobjectgetselection wobjectgetplayer wobjectfindnearestbynameandobjectclass actiontryselect actiontryuseitem actiontryapplyitem actiontrygiveitem actiontryequipanywand actiontrycastbyid actiontrycastbyidontarget chatbox chatboxpaste statushud statushudcolored uigetcontrol uisetlabel isfalse istrue iif randint cstr strlen getobjectinternaltype cstrf stopwatchcreate stopwatchstart stopwatchstop stopwatchelapsedseconds cnumber floor ceiling round abs
+~~			  REFERENCE																							 Eskarina	
+~~																															";
 
-~~																						
-~~ File auto-generated by metaf, a program created by Eskarina of Morningthaw/Coldeve.	
-~~																						
-~~ All recognized structural designators:												
-~~		STATE:				DO:															
-~~		IF:					NAV:														
-~~																						
-~~ All recognized CONDITION (IF:) operation keywords:									
-~~		Never				NavEmpty			MobsInDist_Priority		Not				
-~~		Always				Death				NeedToBuff				PSecsInStateGE	
-~~		All					VendorOpen			NoMobsInDist			SecsOnSpellGE	
-~~		Any					VendorClosed		BlockE					BuPercentGE		
-~~		ChatMatch			ItemCountLE			CellE					DistToRteGE		
-~~		MainSlotsLE			ItemCountGE			IntoPortal				Expr			
-~~		SecsInStateGE		MobsInDist_Name		ExitPortal				ChatCapture		
-~~																						
-~~ All recognized ACTION (DO:) operation keywords:										
-~~		None				EmbedNav			ChatExpr				SetOpt			
-~~		SetState			CallState			SetWatchdog				CreateView		
-~~		Chat				Return				ClearWatchdog			DestroyView		
-~~		DoAll				DoExpr				GetOpt					DestroyAllViews	
-~~																						
-~~ All recognized NAV types:															
-~~		circular			follow														
-~~		linear				once														
-~~																						
-~~ All recognized NAV NODE types:														
-~~		flw					vnd															
-~~		pnt					ptl															
-~~		rcl					tlk															
-~~		pau					chk															
-~~		cht					jmp															
-~~ 																						
-";
-
-		public const string outputNavHeaderText =
-@"~~ FOR AUTO-COMPLETION ASSISTANCE: testvar getvar setvar touchvar clearallvars clearvar getcharintprop getchardoubleprop getcharquadprop getcharboolprop getcharstringprop getisspellknown getcancastspell_hunt getcancastspell_buff getcharvital_base getcharvital_current getcharvital_buffedmax getcharskill_traininglevel getcharskill_base getcharskill_buffed getplayerlandcell getplayercoordinates coordinategetns coordinategetwe coordinategetz coordinatetostring coordinateparse coordinatedistancewithz coordinatedistanceflat wobjectgetphysicscoordinates wobjectgetname wobjectgetobjectclass wobjectgettemplatetype wobjectgetisdooropen wobjectfindnearestmonster wobjectfindnearestdoor wobjectfindnearestbyobjectclass wobjectfindininventorybytemplatetype wobjectfindininventorybyname wobjectfindininventorybynamerx wobjectgetselection wobjectgetplayer wobjectfindnearestbynameandobjectclass actiontryselect actiontryuseitem actiontryapplyitem actiontrygiveitem actiontryequipanywand actiontrycastbyid actiontrycastbyidontarget chatbox chatboxpaste statushud statushudcolored uigetcontrol uisetlabel isfalse istrue iif randint cstr strlen getobjectinternaltype cstrf stopwatchcreate stopwatchstart stopwatchstop stopwatchelapsedseconds cnumber floor ceiling round abs
-
-~~																						
-~~ File auto-generated by metaf, a program created by Eskarina of Morningthaw/Coldeve.	
-~~																						
-~~ All recognized structural designators in a NAV-ONLY file:							
-~~		NAV:																			
-~~																						
-~~ All recognized NAV types:															
-~~		circular			follow														
-~~		linear				once														
-~~																						
-~~ All recognized NAV NODE types:														
-~~		flw					vnd															
-~~		pnt					ptl															
-~~		rcl					tlk															
-~~		pau					chk															
-~~		cht					jmp															
-~~ 																						
-
-~~ 																						
-~~ 				REMEMBER THAT NAV-ONLY FILES MUST CONTAIN EXACTLY ONE NAV!				
-~~ 																						
-";
-		public const string oD = "{"; // opening string delimiter
-		public const string cD = "}"; // closing string delimiter
-
-		public static string __2EOL = @"\s*(~~.*)?$";//new Regex( , RegexOptions.Compiled);
-		public static Regex R__2EOL = new Regex(__2EOL, RegexOptions.Compiled);
-		public static Regex R__LN = new Regex(@"^\s*(~~.*)?$", RegexOptions.Compiled);
-		public static Regex R_Empty = new Regex(@"^$", RegexOptions.Compiled);
-
-		// "Core" regexes
-		public const string _D = @"[+\-]?(([1-9][0-9]*\.|[0-9]?\.)([0-9]+([eE][+\-]?[0-9]+)|[0-9]+)|([1-9][0-9]*|0))";
-		public const string _I = @"[+\-]?([1-9][0-9]*|0)";
-		public const string _H = @"[A-F0-9]{8}";
-		// [o]([^oc]|[oo]|[cc])*[c]
-		public const string _S = @"[\" + rx.oD + @"]([^\" + rx.oD + @"\" + rx.cD + @"]|\" + rx.oD + @"\" + rx.oD + @"|\" + rx.cD + @"\" + rx.cD + @")*[\" + rx.cD + @"]";
-		public const string _L = @"[a-zA-Z_][a-zA-Z0-9_]*"; // literal	// @"(?<l> _____ |"+rx.fieldEmpty+")"
-
-		private static Dictionary<string, string> typeInfo = new Dictionary<string, string>()
-		{
-			["_D"] = "Doubles are decimal numbers.",
-			["_I"] = "Integers are whole numbers.",
-			["_S"] = "Strings must be enclosed in " + rx.oD + (rx.oD.CompareTo(rx.cD) != 0 ? " " + rx.cD : "") + @" delimiters; any inside them must be escaped by doubling, i.e., single " + rx.oD + @" is not allowed inside metaf strings, and " + rx.oD + rx.oD + @" in metaf results in " + rx.oD + @" in met" + (rx.oD.CompareTo(rx.cD) != 0 ? @" (same for " + rx.cD + ")" : "") + @". Different strings require at least one whitespace character between their delimiters, separating them.",
-			//_H omitted
-			["_L"] = "A literal starts with a letter or underscore, followed by letters, digits, or underscores; no whitespace, and no string delimiters (" + rx.oD + (rx.oD.CompareTo(rx.cD) != 0 ? rx.cD : "") + ")!"
-		};
-
-		public static Dictionary<string, Regex> getLeadIn = new Dictionary<string, Regex>()
-		{
-			["StateIfDoNav"] = new Regex(@"^(?<tabs>[\t]*)(?<type>STATE\:|IF\:|DO\:|NAV\:)", RegexOptions.Compiled),
-			["AnyConditionOp"] = new Regex(@"^(?<tabs>[\t]*)\s*(?<op>Never|Always|All|Any|ChatMatch|MainSlotsLE|SecsInStateGE|NavEmpty|Death|VendorOpen|VendorClosed|ItemCountLE|ItemCountGE|MobsInDist_Name|MobsInDist_Priority|NeedToBuff|NoMobsInDist|BlockE|CellE|IntoPortal|ExitPortal|Not|PSecsInStateGE|SecsOnSpellGE|BuPercentGE|DistToRteGE|Expr|ChatCapture)", RegexOptions.Compiled),
-			["AnyActionOp"] = new Regex(@"^(?<tabs>[\t]*)\s*(?<op>None|SetState|DoAll|EmbedNav|CallState|Return|DoExpr|ChatExpr|Chat|SetWatchdog|ClearWatchdog|GetOpt|SetOpt|CreateView|DestroyView|DestroyAllViews)", RegexOptions.Compiled),
-			["AnyNavNodeType"] = new Regex(@"^\t(?<type>flw|pnt|rcl|pau|cht|vnd|ptl|tlk|chk|jmp)", RegexOptions.Compiled),
-			["GuessOpSwap"] = new Regex(@"^\t(?<op>DoAll|DoExpr|All|Expr)", RegexOptions.Compiled) // I expect All and Expr to often be accidentally used instead of DoAll and DoExpr; help the users out...
-		};
-
-		public static Dictionary<string, Regex> getParms = new Dictionary<string, Regex>()
-		{
-			["STATE:"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
-			["NAV:"] = new Regex(@"^\s+(?<l>" + _L + @")\s+(?<l2>circular|linear|once|follow)$", RegexOptions.Compiled),
-
-			["Never"] = R_Empty,
-			["Always"] = R_Empty,
-			["All"] = R_Empty,
-			["Any"] = R_Empty,
-			["ChatMatch"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
-			["MainSlotsLE"] = new Regex(@"^\s+(?<i>" + _I + ")$", RegexOptions.Compiled),
-			["SecsInStateGE"] = new Regex(@"^\s+(?<i>" + _I + ")$", RegexOptions.Compiled),
-			["NavEmpty"] = R_Empty,
-			["Death"] = R_Empty,
-			["VendorOpen"] = R_Empty,
-			["VendorClosed"] = R_Empty,
-			["ItemCountLE"] = new Regex(@"^\s+(?<i>" + _I + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
-			["ItemCountGE"] = new Regex(@"^\s+(?<i>" + _I + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
-			["MobsInDist_Name"] = new Regex(@"^\s+(?<i>" + _I + @")\s+(?<d>" + _D + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
-			["MobsInDist_Priority"] = new Regex(@"^\s+(?<i>" + _I + @")\s+(?<d>" + _D + @")\s+(?<i2>" + _I + ")$", RegexOptions.Compiled),
-			["NeedToBuff"] = R_Empty,
-			["NoMobsInDist"] = new Regex(@"^\s+(?<d>" + _D + ")$", RegexOptions.Compiled),
-			["BlockE"] = new Regex(@"^\s+(?<h>" + _H + ")$", RegexOptions.Compiled), 
-			["CellE"] = new Regex(@"^\s+(?<h>" + _H + ")$", RegexOptions.Compiled), 
-			["IntoPortal"] = R_Empty,
-			["ExitPortal"] = R_Empty,
-			//["Not"] = CTypeID.Not,
-			["PSecsInStateGE"] = new Regex(@"^\s+(?<i>" + _I + ")$", RegexOptions.Compiled),
-			["SecsOnSpellGE"] = new Regex(@"^\s+(?<i>" + _I + @")\s+(?<i2>" + _I + ")$", RegexOptions.Compiled), 
-			["BuPercentGE"] = new Regex(@"^\s+(?<i>" + _I + ")$", RegexOptions.Compiled),
-			["DistToRteGE"] = new Regex(@"^\s+(?<d>" + _D + ")$", RegexOptions.Compiled),
-			["Expr"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
-			["ChatCapture"] = new Regex(@"^\s+(?<s>" + _S + @")\s+(?<s2>" + _S + ")$", RegexOptions.Compiled), 
-
-			["None"] = R_Empty,
-			["SetState"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
-			["Chat"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
-			["DoAll"] = R_Empty,
-			["EmbedNav"] = new Regex(@"^\s+(?<l>" + _L + @")\s+(?<s>" + _S + @")(\s+(?<xf>" + _S + @"))?$", RegexOptions.Compiled), 
-			["CallState"] = new Regex(@"^\s+(?<s>" + _S + @")\s+(?<s2>" + _S + ")$", RegexOptions.Compiled), 
-			["Return"] = R_Empty,
-			["DoExpr"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
-			["ChatExpr"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
-			["SetWatchdog"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
-			["ClearWatchdog"] = R_Empty,
-			["GetOpt"] = new Regex(@"^\s+(?<s>" + _S + @")\s+(?<s2>" + _S + ")$", RegexOptions.Compiled), 
-			["SetOpt"] = new Regex(@"^\s+(?<s>" + _S + @")\s+(?<s2>" + _S + ")$", RegexOptions.Compiled), 
-			["CreateView"] = new Regex(@"^\s+(?<s>" + _S + @")\s+(?<s2>" + _S + ")$", RegexOptions.Compiled), 
-			["DestroyView"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
-			["DestroyAllViews"] = R_Empty,
-
-			["flw"] = new Regex(@"^\s+(?<h>" + _H + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
-			["pnt"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")$", RegexOptions.Compiled), 
-			["rcl"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
-			["pau"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<d4>" + _D + ")$", RegexOptions.Compiled), 
-			["cht"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
-			["vnd"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<h>" + _H + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
-			["ptl"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<d4>" + _D + @")\s+(?<d5>" + _D + @")\s+(?<d6>" + _D + @")\s+(?<i>" + _I + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
-			["tlk"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<d4>" + _D + @")\s+(?<d5>" + _D + @")\s+(?<d6>" + _D + @")\s+(?<i>" + _I + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
-			["chk"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")$", RegexOptions.Compiled), 
-			["jmp"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<d4>" + _D + @")\s+(?<s>" + _S + @")\s+(?<d5>" + _D + ")$", RegexOptions.Compiled), 
-
-			["ENavXF"] = new Regex(@"^\s*(?<a>" + _D + @")\s+(?<b>" + _D + @")\s+(?<c>" + _D + @")\s+(?<d>" + _D + @")\s+(?<e>" + _D + @")\s+(?<f>" + _D + @")\s+(?<g>" + _D + @")\s*$", RegexOptions.Compiled)
-		};
-
-		public static Dictionary<string, string> getInfo = new Dictionary<string, string>()
-		{
-			["STATE:"] = "Required: 'STATE:' must be at the start of the line, followed by a string state name. (" + rx.typeInfo["_S"] + ") Every state must contain at least one Rule (IF-DO pair) with proper tabbing in.",
-			["IF:"] = "Required: 'IF:' must be tabbed in once, followed by a Condition operation, on the same line.",
-			["DO:"] = "Required: 'DO:' must be tabbed in twice, followed by an Action operation, on the same line.",
-			["NAV:"] = "Required: 'NAV:' must be at the start of the line, followed by a literal tag and a literal nav type (circular, linear, once, or follow). (" + rx.typeInfo["_L"] + ")",
-
-			["Generic"] = "Syntax error. (General tips: double-check tabbing and state/rule structure (IF-DO pairs?), and ensure there are no stray characters, and that you're using " + rx.oD + (rx.oD.CompareTo(rx.cD) != 0 ? " " + rx.cD : "") + @" string delimiters properly.)",
-
-			["Never"] = "'Never' requires: no inputs.",
-			["Always"] = "'Always' requires: no inputs.",
-			["All"] = "'All' requires: no same-line inputs. Enclosed operations must appear on following lines, tabbed in once more.",
-			["Any"] = "'Any' requires: no same-line inputs. Enclosed operations must appear on following lines, tabbed in once more.",
-			["ChatMatch"] = "'ChatMatch' requires one input: a string 'chat regex' to match. (" + rx.typeInfo["_S"] + ")",
-			["MainSlotsLE"] = "'MainSlotsLE' requires one input: an integer slot-count. (" + rx.typeInfo["_I"] + ")",
-			["SecsInStateGE"] = "'SecsInStateGE' requires one input: an integer time (in seconds). (" + rx.typeInfo["_I"] + ")",
-			["NavEmpty"] = "'NavEmpty' requires: no inputs.",
-			["Death"] = "'Death' requires: no inputs.",
-			["VendorOpen"] = "'VendorOpen' requires: no inputs.",
-			["VendorClosed"] = "'VendorClosed' requires: no inputs.",
-			["ItemCountLE"] = "'ItemCountLE' requires two inputs: an integer item-count, a string item-name. (" + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
-			["ItemCountGE"] = "'ItemCountGE' requires two inputs: an integer item-count, a string item-name. (" + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
-			["MobsInDist_Name"] = "'MobsInDist_Name' requires three inputs: an integer monster-count, a double distance, a string monster-name. (" + rx.typeInfo["_I"] + " " + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")",
-			["MobsInDist_Priority"] = "'MobsInDist_Priority' requires three inputs: an integer monster-count, a double distance, an integer monster-priority. (" + rx.typeInfo["_I"] + " " + rx.typeInfo["_D"] + ")",
-			["NeedToBuff"] = "'NeedToBuff' requires: no inputs.",
-			["NoMobsInDist"] = "'NoMobsInDist' requires one input: a double distance. (" + rx.typeInfo["_D"] + ")",
-			["BlockE"] = "'BlockE' requires one input: an integer landblock (expressed in hexidecimal). (" + rx.typeInfo["_I"] + ")",
-			["CellE"] = "'CellE' requires one input: an integer landcell (expressed in hexidecimal). (" + rx.typeInfo["_I"] + ")",
-			["IntoPortal"] = "'IntoPortal' requires: no inputs.",
-			["ExitPortal"] = "'ExitPortal' requires: no inputs.",
-			["Not"] = "'Not' requires: a following operation, on the same line.",
-			["PSecsInStateGE"] = "'PSecsInStateGE' requires one input: an integer burden. (" + rx.typeInfo["_I"] + ")",
-			["SecsOnSpellGE"] = "'SecsOnSpellGE' requires two inputs: an integer time (in seconds), an integer SpellID. (" + rx.typeInfo["_I"] + ")",
-			["BuPercentGE"] = "'BuPercentGE' requires one input: an integer burden. (" + rx.typeInfo["_I"] + ")",
-			["DistToRteGE"] = "'DistToRteGE' requires one input: a double distance. (" + rx.typeInfo["_D"] + ")",
-			["Expr"] = "'Expr' requires one input: a string 'code expression' to evaluate. (" + rx.typeInfo["_S"] + ")",
-			["ChatCapture"] = "'ChatCapture' requires two inputs: a string 'chat regex' to match/capture, a string 'color ID list'. (" + rx.typeInfo["_S"] + ")",
-
-			["None"] = "'None' requires: no inputs.",
-			["SetState"] = "'SetState' requires one input: a string state name. (" + rx.typeInfo["_S"] + ")",
-			["Chat"] = "'Chat' requires one input: a string to send to chat. (" + rx.typeInfo["_S"] + ")",
-			["DoAll"] = "'DoAll' requires: no same-line inputs. Enclosed operations must appear on following lines, tabbed in once more.",
-			["EmbedNav"] = "'EmbedNav' requires two inputs: a literal tag, a string name. It can also take an optional string input that must contain seven space-separated doubles that represent a mathematical transform of the nav points: a b c d e f g, where newX=aX+bY+e, newY=cX+dY+f, and newZ=Z+g.  (" + rx.typeInfo["_L"] + " " + rx.typeInfo["_S"] + " " + rx.typeInfo["_D"] + ")",
-			["CallState"] = "'CallState' requires two inputs: a string 'go-to' state name, a string 'return-to' state name. (" + rx.typeInfo["_S"] + ")",
-			["Return"] = "'Return' requires: no inputs.",
-			["DoExpr"] = "'DoExpr' requires one input: a string 'code expression' to evaluate. (" + rx.typeInfo["_S"] + ")",
-			["ChatExpr"] = "'ChatExpr' requires one input: a string 'code expression' to evaluate then send as chat. (" + rx.typeInfo["_S"] + ")",
-			["SetWatchdog"] = "'SetWatchdog' requires three inputs: a double distance, a double time (in seconds), a string state name. (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")",
-			["ClearWatchdog"] = "'ClearWatchdog' requires: no inputs.",
-			["GetOpt"] = "'GetOpt' requires two inputs: a string VT-option, a string variable-name. (" + rx.typeInfo["_S"] + ")",
-			["SetOpt"] = "'SetOpt' requires two inputs: a string VT-option, a string variable-name. (" + rx.typeInfo["_S"] + ")",
-			["CreateView"] = "'CreateView' requires two inputs: a string view, a string XML. (" + rx.typeInfo["_S"] + ")",
-			["DestroyView"] = "'DestroyView' requires one input: a string view. (" + rx.typeInfo["_S"] + ")",
-			["DestroyAllViews"] = "'DestroyAllViews' requires: no inputs.",
-
-			["flw"] = "'flw' requires two inputs: integer target GUID (in hexidecimal), string target name. (" + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
-			["pnt"] = "'pnt' requires hree inputs: double xyz-coordinates. (" + rx.typeInfo["_D"] + ")",
-			["rcl"] = "'rcl' requires four inputs: double xyz-coordinates, string recall spell name (exact). (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")\nRecognized recall spell names:\n* " + rx.oD + "Primary Portal Recall" + rx.cD + "\n* " + rx.oD + "Secondary Portal Recall" + rx.cD + "\n* " + rx.oD + "Lifestone Recall" + rx.cD + "\n* " + rx.oD + "Portal Recall" + rx.cD + "\n* " + rx.oD + "Recall Aphus Lassel" + rx.cD + "\n* " + rx.oD + "Recall the Sanctuary" + rx.cD + "\n* " + rx.oD + "Recall to the Singularity Caul" + rx.cD + "\n* " + rx.oD + "Glenden Wood Recall" + rx.cD + "\n* " + rx.oD + "Aerlinthe Recall" + rx.cD + "\n* " + rx.oD + "Mount Lethe Recall" + rx.cD + "\n* " + rx.oD + "Ulgrim's Recall" + rx.cD + "\n* " + rx.oD + "Bur Recall" + rx.cD + "\n* " + rx.oD + "Paradox-touched Olthoi Infested Area Recall" + rx.cD + "\n* " + rx.oD + "Call of the Mhoire Forge" + rx.cD + "\n* " + rx.oD + "Lost City of Neftet Recall" + rx.cD + "\n* " + rx.oD + "Return to the Keep" + rx.cD + "\n* " + rx.oD + "Facility Hub Recall" + rx.cD + "\n* " + rx.oD + "Colosseum Recall" + rx.cD + "\n* " + rx.oD + "Gear Knight Invasion Area Camp Recall" + rx.cD + "\n* " + rx.oD + "Rynthid Recall" + rx.cD + "\n* " + rx.oD + "Lifestone Sending" + rx.cD,
-			["pau"] = "'pau' requires four inputs: double xyz-coordinates, double pause time (in seconds). (" + rx.typeInfo["_D"] + ")",
-			["cht"] = "'cht' requires four inputs: double xyz-coordinates, string recall spell name (exact). (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")",
-			["vnd"] = "'vnd' requires five inputs: double xyz-coordinates, integer vendor GUID (in hexidecimal), string vendor name. (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
-			["ptl"] = "'ptl' requires eight inputs: double xyz-coordinates, double xyz-coordinates of object, integer ObjectClass (portal=14, npc=37), string object name. (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
-			["tlk"] = "'tlk' requires eight inputs: double xyz-coordinates, double xyz-coordinates of object, integer ObjectClass (npc=37), string object name. (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
-			["chk"] = "'chk' requires three inputs: double xyz-coordinates. (" + rx.typeInfo["_D"] + ")",
-			["jmp"] = "'jmp' requires six inputs: double xyz-coordinates, double heading (in degrees), string holdShift (" + rx.oD + "True" + rx.cD + " or " + rx.oD + "False" + rx.cD + "), double time-delay (in milliseconds). (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")",
-
-			["ENavXF"] = "When present, the transform string input (third input) for EmbedNav must contain seven space-separated doubles, representing a mathematical transform of the nav points: a b c d e f g, where newX=aX+bY+e, newY=cX+dY+f, and newZ=Z+g."
-		};
 	}
 	abstract class ImportExport
 	{
@@ -4228,7 +4294,7 @@ coding your metas (especially the very long VT function names).
 		override public void ExportToMetAF(ref FileLines f) { throw new Exception("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ExportToMetAF: Should never get here."); }
 	}
 
-	// Weird one-off case... kind've a pseudo-node, really
+	// Weird one-off case... kind've a pseudo-node, really; the only one with no xyz (for obvious reasons)
 	class NFollow : NavNode // line# for msgs good
 	{
 		private string _s_tgtName;
@@ -5902,7 +5968,7 @@ coding your metas (especially the very long VT function names).
 
 			if (!this._navOnly)
 			{
-				f.line.Add(rx.outputHeaderText);
+				f.line.Add(OutputText.metaHeader);
 				foreach (State s in this._state)
 				{
 					//f.line.Add("~~\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t");
@@ -5922,7 +5988,7 @@ coding your metas (especially the very long VT function names).
 			}
 			else
 			{
-				f.line.Add(rx.outputNavHeaderText);
+				f.line.Add(OutputText.navHeader);
 				foreach (KeyValuePair<string, Nav> sn in this._nav)
 				{
 					sn.Value.ExportToMetAF(ref f);
@@ -5955,31 +6021,37 @@ coding your metas (especially the very long VT function names).
 			{
 				if (args[0].CompareTo("-version") == 0)
 				{
-					Console.WriteLine("\n" + myVersion.version);
+					Console.WriteLine("\n" + CmdLnParms.version);
 					Environment.Exit(0);
 				}
 				if (args[0].CompareTo("-new") == 0)
 				{
-					System.IO.StreamWriter fOut = new System.IO.StreamWriter("__NEW__.af");
-					fOut.WriteLine(rx.outputHeaderText);
+					System.IO.StreamWriter fOut = new System.IO.StreamWriter(CmdLnParms.newFileName);
+					fOut.WriteLine(OutputText.metaHeader);
 					fOut.Close();
-					Console.Write("\n\tOutput file: __NEW__.af\n");
+					Console.Write("\n\tOutput file: "+ CmdLnParms.newFileName + "\n");
 					Environment.Exit(0);
 				}
 				if (args[0].CompareTo("-newnav") == 0)
 				{
-					System.IO.StreamWriter fOut = new System.IO.StreamWriter("__NEWNAV__.af");
-					fOut.WriteLine(rx.outputNavHeaderText);
+					System.IO.StreamWriter fOut = new System.IO.StreamWriter(CmdLnParms.newnavFileName);
+					fOut.WriteLine(OutputText.navHeader);
 					fOut.Close();
-					Console.Write("\n\tOutput file: __NEWNAV__.af\n");
+					Console.Write("\n\tOutput file: "+ CmdLnParms.newnavFileName + "\n");
 					Environment.Exit(0);
 				}
 				if (args[0].CompareTo("-help") == 0)
 				{
-					System.IO.StreamWriter fOut = new System.IO.StreamWriter("metafDOC.af");
-					fOut.WriteLine(rx.helpText);
+					System.IO.StreamWriter fOut = new System.IO.StreamWriter(CmdLnParms.readmeFileName);
+					fOut.WriteLine(OutputText.readme);
 					fOut.Close();
-					Console.Write("\n\tOutput file: metafDOC.af\n");
+					Console.Write("\n\tOutput file: "+ CmdLnParms.readmeFileName + "\n");
+
+					fOut = new System.IO.StreamWriter(CmdLnParms.refFileName);
+					fOut.WriteLine(OutputText.reference);
+					fOut.Close();
+					Console.Write("\n\tOutput file: " + CmdLnParms.refFileName + "\n");
+
 					Environment.Exit(0);
 				}
 
