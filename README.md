@@ -1,7 +1,7 @@
-# metaf v.0.7.0.5
+# metaf v.0.7.0.6
 metaf is a powerful meta/nav editor in an alternate format from that used by the VirindiTank addon to the MMORPG game Asheron's Call. metaf provides full-featured capabilities for editing, and very straightforward bidirectional translation between .met/.nav and .af, with VirindiTank still running the end results. Requires .NET Core. Notepad++ strongly recommended.
 
-**The necessary files to run metaf are inside the subdirectory "run_metaf". Read the text file metafDOC.af that's there.**
+**The necessary files to run metaf are inside the subdirectory "run_metaf". Read the text file metafREADME.af that's there.**
 
 ### metaf strengths:
 * Highly efficient and human-friendly editing capabilities for
@@ -26,9 +26,9 @@ metaf is a powerful meta/nav editor in an alternate format from that used by the
   - Enables one navroute to become many distinct ones in the .met output
   - Makes navs for ALL "duplicate" dungeons as easy as making one nav for one of them, then computing the seven numbers required for transforming it into each other one
 * Cannot easily create new/relevant coordinates within a navroute, but trivially simple to create EmbedNav placeholders in code, ready for fill-in, exactly where they're needed
-* Extensive help-file included, as well as reference-ready keyword lists in file headers
+* Extensive help-files included, as well as reference-ready keyword lists in file headers
 
-**Read metafDOC.af text file for more. It's in the "run_metaf" subdirectory.**
+**Read metafREADME.af text file for more. It's in the "run_metaf" subdirectory.**
 
 ### Advantages of using Notepad++ to edit metaf files:
 * Powerful, fast, free, easy-to-use editor
@@ -42,4 +42,4 @@ metaf is a powerful meta/nav editor in an alternate format from that used by the
 * Auto-completion suggestion menus (kind of a "poor man's IntelliSense")
 * The above drastically help mitigate the lack of instant feedback for invalid inputs
 
-**Read metafDOC.af text file for more. It's in the "run_metaf" subdirectory.**
+**Read metafREADME.af text file for more. It's in the "run_metaf" subdirectory.**
