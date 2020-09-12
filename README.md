@@ -28,7 +28,7 @@ metaf is a powerful meta/nav editor in an alternate format from that used by the
 * Cannot easily create new/relevant coordinates within a navroute, but trivially simple to create EmbedNav placeholders in code, ready for fill-in, exactly where they're needed
 * Extensive help-files included, as well as reference-ready keyword lists in file headers
 
-**Read metafREADME.af text file for more. It's in zip file in the 'releases' directory.**
+**Read metafREADME.af text file for more. It's inside a zip file in the 'releases' directory.**
 
 ### Advantages of using Notepad++ to edit metaf files:
 * Powerful, fast, free, easy-to-use editor
@@ -42,4 +42,4 @@ metaf is a powerful meta/nav editor in an alternate format from that used by the
 * Auto-completion suggestion menus (kind of a "poor man's IntelliSense")
 * The above drastically help mitigate the lack of instant feedback for invalid inputs
 
-**Read metafREADME.af text file for more. It's in zip file in the 'releases' directory.**
+**Read metafREADME.af text file for more. It's inside a zip file in the 'releases' directory.**
