@@ -69,7 +69,7 @@ namespace metaf
 	class myDebug { public static string[] args = { "eskontrol.af" }; }//"__Maybe60W.nav" }; }
 #endif
 	class CmdLnParms {
-		public static string version = "METa Alternate Format (metaf), v.0.7.0.6     GPLv3 Copyright (C) 2020     J. Edwards";
+		public static string version = "METa Alternate Format (metaf), v.0.7.0.7     GPLv3 Copyright (C) 2020     J. Edwards";
 		public static string newFileName = "__NEW__.af";
 		public static string newnavFileName = "__NEWNAV__.af";
 		public static string readmeFileName = "metafREADME.af";
@@ -927,23 +927,25 @@ coding your metas (especially the very long VT function names).
 						 as semicolon-separated numbers. See: http://www.virindi.net/wiki/index.php/Virindi_Chat_System_5
 						 NOTE: It does not appear to actually be color IDs, but rather the various ChatWindow message type
 						 IDs. (I matched to General and Trade, then changed their colors, and they still matched.)
-								Colors I've discovered so far (and maybe correctly identified?):
-										EnemyDeath				0					?							?
-										?						1					?							?
-										Say						2					MagicCast					17
-										YouThink				3					Allegiance					18
-										YouTell					4					Fellowship					19
-										?						5					?							20
-										HoT/Surge				6					YouEvaded/WereHitByEnemy	21
-										YouResist(&HitByMagic?)	7					EnemyEvaded/WasHitByYou		22
-										?						8					@hom						23
-										?						9					Tinker Applied				24
-										?						10					General						27
-										?						11					Trade						28
-										Emote					12					?							?
-										?						13					?							?
-										?						14					?							?
-										?						15					?							?
+								Colors I've discovered so far (personally, and with '/ub printcolors'):
+									Type			Example			ID				Type			Example			ID
+									Broadcast		EnemyDeath		0				Appraisal		?				?
+									?				?				?				Spellcasting	AnyMagicCast	17
+									Speech			Say				2				Allegiance		AllegianceChat	18
+									Tell			YouThink		3				Fellowship		FellowshipChat	19
+									OutgoingTell	YouTell			4				WorldBroadcast	Aerfalle?		20
+									System			ServerRestart?	5				CombatEnemy		YouEvade/HitBy	21
+									Combat			HoT/Surge		6				CombatSelf		Enemy ''/ ''	22
+									Magic			YouResist/HitBy	7				Recall			@hom			23
+									Channel			?				8				Craft			TinkerApplied	24
+									ChannelSend		?				9				Salvaging		AnySalvaging	25
+									Social			?				10				?				?				?
+									SocialSend		?				11				General			GeneralChat		27
+									Emote			AnyEmote		12				Trade			TradeChat		28
+									Advancement		LevelUp?		13				LFG				LFGChat?		29
+									Abuse			?				14				Roleplay		RoleplayChat?	30
+									Help			?				15				AdminTell		?				31
+																					Olthoi			?				32
 				EXAMPLE: ChatCapture {^.*(?<who>Eskarina).* (says|tells you), \"".+\""$} {2;4}
 						--> When True:	Variable capturegroup_who holds string 'Eskarina';
 									 	Variable capturecolor holds matched-message's colorID.
