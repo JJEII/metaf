@@ -1,0 +1,246 @@
+~~																															
+~~		METa Alternate Format																					Created by	
+~~			   README																							 Eskarina	
+~~																															
+
+~~											
+~~	TABLE OF CONTENTS:						
+~~											
+~~		1. VISUAL CODING ASSISTANCE			
+~~		2. WHY metaf?						
+~~		3. GETTING STARTED					
+~~		4. META STRUCTURE					
+~~		5. COMMENTS, STRINGS, MISCELLANEOUS	
+~~		6. QUICK REFERENCE (moved)			
+~~		7. FULL REFERENCE (moved)			
+~~		8. VIRINDITANK FUNCTIONS (moved)	
+~~											
+
+~~ 1. VISUAL CODING ASSISTANCE																								
+
+I strongly recommend you get Notepad++. Your metaf experience will be vastly improved. It's a powerful and free text editor
+that can do custom coloring of text (along with several other capabilities I have leveraged). I have created a metaf.xml file
+that colors all the relevant keywords, and activating that feature helps substantially.
+	1) Download and install Notepad++ from here: https://notepad-plus-plus.org/downloads/
+	2) Open it, go to the Language menu, then User Defined Language, and click Define your language...
+	3) Click Import..., then navigate to and choose the metaf.xml file. Click Open.
+	4) It should now be imported. Close Notepad++, and re-open it, then open this file in it.
+Even this documentation file works better with that custom coloring activated. And, meta files work much, much better. So,
+get that going as soon as possible! And, feel free to modify the coloration to your own preferences.
+
+NOTE: If you prefer a 'dark mode' coloration style instead, I've also provided a metaf_dark.xml. Follow the instructions
+above for it, then also go to the Settings menu, then Style Configurator... and select Language: Global Styles, then select
+Style: Default Style, then swap the Foreground and Background colors in the 'Colour Style' box to make the default foreground
+white, and background black. Click Save & Close. (Although, while you're in there, I'd also recommend changing a few other
+styles' colors: 'Indent guideline style' Foreground (then 'More Colours...') RGB[81,81,81] and Background[0,0,0]; 'Brace
+highlight style' Foreground[255,255,255] and Background[0,0,0]; 'Current line background'[28,28,66]; and 'Caret colour'
+[191,128,255].)
+
+I have leveraged Notepad++'s ability to suggest auto-completions based upon file-content-so-far, which should make entering
+those long VirindiTank function names easier and less prone to error.
+
+Notepad++ can auto-close brackets, braces, and parentheses if you tell it to. (Go to the Settings menu, then Preferences...,
+and select Auto-Completion in the list on the left, then select your preferences.)
+
+It can tab-in/out multiple lines simultaneously. (Select them, then press tab or shift-tab.)
+
+It can simultaneously comment/uncomment multiple lines. (See the Edit menu, then Comment/Uncomment, and the Block options.)
+
+~~ 2. WHY metaf?																											
+
+VirindiTank is an impressive addon, but I became very frustrated while creating metas through its in-game editor. It is
+possible to do so, of course, but it is agonizingly inefficient. I found that rather than spending much of my time thinking
+about meta design, I was instead spending most of it just wrestling with the interface. The editor suffers from many
+upsetting shortcomings, to include:
+	* It can't reorder operations inside of rules (you just have to delete and re-enter, in a different order)
+	* It can't change Any<-->All without purging the whole thing and re-entering everything inside it from scratch
+	* It can't directly select text in fields, to copy/paste in and out of them
+	* It can't display more than a short piece of a text field (and can't even scroll it!), so it's incredibly inefficient
+	  to edit anything but the very shortest of text entries
+	* It can't duplicate anything (operations, rules, or states) for subsequent minor modification
+	* The interface is quite opaque (lacking transparency) in conveying a meta's logical structure
+	* It artificially forces states to be ordered alphabetically
+	* It can't search for anything (much less search-and-replace) to find where it appears within a meta
+	* It doesn't have any sort of annotation capability (i.e., 'code comments')
+	* And, I'm sure there are other things, but you get the idea
+
+KEY: Long story, short: metaf suffers from none of the issues listed above. It's a much more friendly way to make metas.
+
+That being said, there is one drawback of some significance that metaf has versus the in-game editor: you don't get instant
+feedback on invalid text entries (e.g., expressions). Metaf does not parse the meaning of the inputs you provide; it simply
+ensures the basic structure and datatypes are correct, while providing a powerful and transparent editing interface. So, if
+you enter gevar[x] when you mean getvar[x], metaf will translate that into .met for VirindiTank to load, and you'll only
+discover the mistake at that point. However, if you have already activated in Notepad++ the custom coloration I've provided,
+you should have noticed something important just now: the correct function name is bold and a different color, so you can
+know you got it right, even in metaf. (Every documented VirindiTank function does this. And, if you haven't yet activated
+the custom colors... seriously: do it. Right now. It helps a ton.) I beleive this, in conjunction with the suggested auto-
+completions, substantially reduce the impact of this drawback.
+
+I think the only other shortcoming of metaf versus the in-game editor is also mixed with one of its strengths: building
+navroutes. For obvious reasons, metaf is not good at adding new navroute nodes that have coordinates in them. (It simply
+has no direct connection to Dereth's topography, so how could it?) However, it also has some great navroute strengths:
+	* It is good at editing navroutes after those points have been collected
+	* It is trivially easy to re-use navroutes in multiple places in metaf code while defining the navroute just one time
+		- 'Code' and 'navroute' sections are listed separately in metaf. The way the two are linked is through a unique
+		  'tag' that every navroute must have (e.g., nav73). The tag is used to cite which navroute to embed in an EmbedNav
+		  operation. A single navroute tag can be cited by as many EmbedNav operations as you want, naming it whatever you
+		  want in each location it's cited. Each tag's navroute is defined exactly one time in the 'navroute' section.
+	* It is very simple to create EmbedNav placeholders in metaf code, ready to be filled in with coordinate content later
+		- Place a single line in the navroute section---e.g., NAV: EmptyNav once---which defines an empty navroute with an
+		  'EmptyNav' tag, then reference it anywhere you need to have an embedded navroute but don't yet have its content
+		  ready---e.g., EmbedNav EmptyNav {[none]}. When you load it in-game, you'll have embedded navroutes everywhere you
+		  need them, just waiting to be filled in.
+	* For little additional effort, I created a layered-on feature: metaf can transform navroutes during translation into
+	  .met. What that means is that for duplicate dungeons, you can create one nav, then simply transform it to create navs
+	  for all the other dungeons with the same layout! Seven numbers = entirely new nav! For more, see EmbedNav in Section 7.
+	* Also for relatively small effort, I added the ability for metaf to directly edit .nav files (without first being
+	  embedded inside a .met file). Just remember that a nav-only file contains exactly one navroute. No more, no less.
+
+One goal for metaf was to provide full-coverage support for the .met format. I believe I have achieved that. 'Success' is
+not defined by 'the meta runs without errors' but rather by 'VirindiTank successfully loaded it'. (This in itself is
+something of an achievement since a single out-of-place character in .met can trigger VirindiTank to refuse to load it,
+simply stating that it's a corrupted file.) The inverse is also needed: 'metaf successfully translated .met to .af.'
+
+~~ 3. GETTING STARTED																										
+
+Running metaf requires that .NET Core be installed. Get it here: https://dotnet.microsoft.com/download
+The three files (exe, dll, json) are also required in order to run. The metaf.xml file defines custom colors for Notepad++.
+Finally, you'll likely need to authorize the file to run since I haven't formally published it with a digital signature.
+(The only thing the program does is read a text-based file you tell it to, and write out another one in a different format.)
+
+I have endeavoured to lower the learning curve as much as I can. metaf can literally translate between .met and .af files by
+simply dragging either file type onto its metaf.exe icon. (It auto-detects the file type and translates it to the other
+format, outputting a new file in the same directory as the one being translated.) However, that approach will never over-
+write anything, instead creating a new and uniquely named output file every time, which may soon get a bit unwieldy if
+you're actively developing a meta and repeatedly translating it to load in-game.
+
+There is also a command line interface, and it just takes an input file name, followed (optionally) by an output file name.
+If you use that instead, it will output to the specified file, whether or not it already exists. (So, be careful.)
+
+The command line can take four other parameters as well: 'metaf -help' recreates this help file and the metaf reference
+file; 'metaf -new' creates a blank template .af file that has the meta-file header text in it, ready for coding a meta;
+'metaf -newnav' does the same, but for a 'nav .af'; 'metaf -version' outputs metaf's current version.
+
+I have mapped all the in-game meta operations to a set of recognized text commands in metaf, used for translating back into
+.met format. Sections 6 and 7 detail them.
+
+TIP: My recommended first step for getting started is to export a .met file to .af and have a look at it. Generally, if you
+are stumped on how to express something in metaf that can be done directly in VirindiTank, then create it there, then export
+it to .af to see what it looks like. (I hope my metafReference.af file usually provides sufficient explanations, though.)
+
+~~ 4. META STRUCTURE																										
+
+The meta structure requires the definition of STATES, inside each of which is one or more RULES, each of which is composed
+of an IF:-DO: pair. The IF: is a CONDITION, while the DO: is an ACTION (performed if the condition evaluates to True). Every
+IF: and every DO: requires exactly one OPERATION to be contained within it, whether that operation be Never or None, or an
+All/Any or DoAll that contains more operations wrapped inside of it. Each Condition triggers its corresponding Action if it
+evaluates to true. (After all states have been defined, the navroute definitions are listed. NAV: marks the start of an
+individual navroute, and any NODES inside the navroute appear on immediately subsequent lines, tabbed in one time.)
+
+Each state must be uniquely named and appear exactly one time (and atomically, i.e., defined in full, and not split apart
+into partial definitions spread throughout the file).
+
+State order does not matter in metaf. Place them wherever works best for you. (Even move them around while developing, if
+that helps.) Caveat: all states are listed above all navroutes.
+
+Rule order within each state does matter, though. The top rule in each state has the highest priority, and each rule after
+that descends on down the list in priority, to the lowest at the bottom.
+
+When all states in the entire meta have been fully defined, all embedded navroutes are listed below them.
+
+Proper tabbing is critical to metaf's code structure. It defines what's inside of what, in exactly the same way the in-game
+editor allows. Pay attention to it.
+
+TIP: Notepad++ supports tab/untab of multiple lines, en masse: just select the lines, and press tab or shift-tab (to untab).
+
+I have leveraged the fact that every Condition and Action contains exactly one Operation to make the code more compact.
+The logical code structure is like this:
+	STATE: {Default}
+	^	IF: 				<-- Almost totally blank line
+	|		Any
+	|			...
+	|		DO:				<-- Almost totally blank line
+	|			None
+	|	IF:					<-- Almost totally blank line
+	|	^	Always
+	|	|	DO:				<-- Almost totally blank line
+	|	|	^	DoAll
+	|	|	|	^	...
+	|	|	|	|	^		<-- Tabbing relationship is the same as below
+But, I expect many rules (IF:-DO: pairs) to exist in most metas, so that would be a massive waste of code-viewing space,
+just leaving every single IF: and DO: line essentially blank. Thus, I have condensed the code so that, even though it
+continues to maintain its logical structure (and tab-in constraints), it is significantly more compact (especially across
+many lines) due to requiring that the mandatory operation be on the same line as its rule label. Like this:
+	STATE: {Default}
+	^	IF: Any					<-- Now appears on same line as 'IF:'
+	|			...			<-- Note: still tabbed-in three times, just like before
+	|		DO:	None			<-- Now appears on same line as 'DO:'
+	|	IF:	Always				<-- Now appears on same line as 'IF:'
+	|	^	DO:	DoAll			<-- Now appears on same line as 'DO:'
+	|	|	^	^	...		<-- Note: still tabbed-in four times, just like before
+	|	|	|	|	^		<-- Tabbing relationship is the same as above
+Note that the actual required tabbing remains the same in both! That's important because tab-in count determines logical
+nesting of operations. So, even though the '...' at the bottom there appears to be tabbed in too far (two times beyond DO:,
+rather than just one time), it's actually correct, because it's inside of both DO: and DoAll.
+
+The one and only exception to this tab-in rule is the Not operation, which imposes no cumulatively additional tab-in demands
+upon the following operation(s). So, if a line with, say, Any is tabbed in four times, then the following lines defining the
+operations it encloses must be tabbed-in five times. And, this is also true of a four-tabbed Not Any line, as well as a four-
+tabbed Not Not ... Not Any line: the line following is tabbed in five times.
+
+TIP: Because metaf uses a similar code-structure style to the Python language (tabbing means something), you can actually
+leverage this fact in Notepad++. While you do lose the custom coloration by doing this, if you set the language to Python
+instead of metaf, you can get code-folding for free. (Getting both simultaneously requires writing a custom lexer.)
+
+Once all states are defined, all navroutes (NAV:) are listed below. And, just like with states, the navroute order does not
+matter; but just likes with rules in each state, the order of the nav nodes in each navroute does matter.
+
+~~ 5. COMMENTS, STRINGS, MISCELLANEOUS																						
+
+The metaf system supports line commenting. Just put a double-tilde (two ~) anywhere, and the rest of that line is ignored.
+
+Many of the Operation inputs are essentially freeform text strings--from regular expressions to state names and more. In
+order to unambiguously identify these inputs as they're intended, metaf requires that strings be delimited by braces { }.
+Strings should also be separated by at least one whitespace character (e.g., space or tab). If you need to include braces
+inside of a string input, you can do so: simply double it. In other words, when inside a string, {{ in metaf becomes { in
+met, and }} becomes }. (Single braces aren't allowed inside metaf strings; if they're there at all, they must be doubled.)
+
+Blank (whitespace-only) lines are ignored. Use them to your advantage if they improve readability.
+
+NOTE: metaf expects decimal numbers to use periods as their decimal separator characters. If you live in a country that uses
+commas instead, be aware of that. (.NET defaults to using the local culture for number formatting, which caused metaf to
+break in those countries because .met always uses periods (I think). I have now forced .NET it to remain culture-invariant
+for metaf, wherever it runs, so that it won't break anymore; but it does require periods, not commas.)
+
+NOTE: When metaf exports from .met to .af, it includes a large comment header. There are multiple reasons for this, but the
+main two are these: A) Convenient metaf keyword reference, and B) Notepad++ provides predictive auto-completion of words
+based upon what's already been entered into a document, so including all VirindiTank function names and all metaf keywords
+right at the start achieves a sort of 'poor man's IntelliSense' that should help with getting them input correctly while
+coding your metas (especially the very long VT function names).
+
+~~ 																															
+~~ 6. QUICK REFERENCE																										
+~~ 																															
+
+	(Moved to metafReference.af. Run 'metaf -help' if you don't have that file.)
+
+~~																															
+~~ 7. FULL REFERENCE																										
+~~																															
+
+	(Moved to metafReference.af. Run 'metaf -help' if you don't have that file.)
+
+~~																															
+~~ 8. VIRINDITANK FUNCTIONS																									
+~~																															
+
+	(Moved to metafReference.af. Run 'metaf -help' if you don't have that file.)
+
+~~																															
+~~	I hope you find metaf helpful in your meta-making adventures!   ~ Eskarina												
+~~																															
+
+~~																															
+~~		METa Alternate Format																					Created by	
+~~			   README																							 Eskarina	
+~~																															
