@@ -69,7 +69,7 @@ namespace metaf
 	class myDebug { public static string[] args = { "eskontrol.af" }; }//"__Maybe60W.nav" }; }
 #endif
 	class CmdLnParms {
-		public static string version = "METa Alternate Format (metaf), v.0.7.0.7     GPLv3 Copyright (C) 2020     J. Edwards";
+		public static string version = "METa Alternate Format (metaf), v.0.7.0.8     GPLv3 Copyright (C) 2020     J. Edwards";
 		public static string newFileName = "__NEW__.af";
 		public static string newnavFileName = "__NEWNAV__.af";
 		public static string readmeFileName = "metafREADME.af";
@@ -469,18 +469,18 @@ namespace metaf
 ~~			   README																							 Eskarina	
 ~~																															
 
-~~											
-~~	TABLE OF CONTENTS:						
-~~											
-~~		1. VISUAL CODING ASSISTANCE			
-~~		2. WHY metaf?						
-~~		3. GETTING STARTED					
-~~		4. META STRUCTURE					
-~~		5. COMMENTS, STRINGS, MISCELLANEOUS	
-~~		6. QUICK REFERENCE (moved)			
-~~		7. FULL REFERENCE (moved)			
-~~		8. VIRINDITANK FUNCTIONS (moved)	
-~~											
+~~															
+~~	TABLE OF CONTENTS:										
+~~															
+~~		1. VISUAL CODING ASSISTANCE							
+~~		2. WHY metaf?										
+~~		3. GETTING STARTED									
+~~		4. META STRUCTURE									
+~~		5. COMMENTS, STRINGS, CODE-FOLDING, MISCELLANEOUS	
+~~		6. QUICK REFERENCE (moved)							
+~~		7. FULL REFERENCE (moved)							
+~~		8. VIRINDITANK FUNCTIONS (moved)					
+~~															
 
 ~~ 1. VISUAL CODING ASSISTANCE																								
 
@@ -654,14 +654,10 @@ upon the following operation(s). So, if a line with, say, Any is tabbed in four 
 operations it encloses must be tabbed-in five times. And, this is also true of a four-tabbed Not Any line, as well as a four-
 tabbed Not Not ... Not Any line: the line following is tabbed in five times.
 
-TIP: Because metaf uses a similar code-structure style to the Python language (tabbing means something), you can actually
-leverage this fact in Notepad++. While you do lose the custom coloration by doing this, if you set the language to Python
-instead of metaf, you can get code-folding for free. (Getting both simultaneously requires writing a custom lexer.)
-
 Once all states are defined, all navroutes (NAV:) are listed below. And, just like with states, the navroute order does not
 matter; but just likes with rules in each state, the order of the nav nodes in each navroute does matter.
 
-~~ 5. COMMENTS, STRINGS, MISCELLANEOUS																						
+~~ 5. COMMENTS, STRINGS, CODE-FOLDING, MISCELLANEOUS																		
 
 The metaf system supports line commenting. Just put a double-tilde (two ~) anywhere, and the rest of that line is ignored.
 
@@ -672,6 +668,19 @@ inside of a string input, you can do so: simply double it. In other words, when 
 met, and }} becomes }. (Single braces aren't allowed inside metaf strings; if they're there at all, they must be doubled.)
 
 Blank (whitespace-only) lines are ignored. Use them to your advantage if they improve readability.
+
+You can code-fold with Notepad++ and metaf! Just place matching braces behind line comments, and you have it. This includes
+nested folding. (Every string input is always enclosed with both opening and closing braces on its own line, so it doesn't
+trigger folding, and because the folding braces are behind line comments, metaf itself ignores them during translation.)
+Example:
+	STATE: {Default ~~{	 <-- this folds the whole state
+		IF: Always
+			DO: None
+		IF: Always ~~{	 <-- this just folds this piece of the state
+			DO: None ~~} <-- closing piece-of-state fold
+		IF: Always
+			DO: None
+	~~}					 <-- closing state fold
 
 NOTE: metaf expects decimal numbers to use periods as their decimal separator characters. If you live in a country that uses
 commas instead, be aware of that. (.NET defaults to using the local culture for number formatting, which caused metaf to
