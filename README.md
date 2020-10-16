@@ -1,4 +1,4 @@
-# metaf v.0.7.0.9
+# metaf v.0.7.1.0
 metaf is a powerful meta/nav editor in an alternate format from that used by the VirindiTank addon to the MMORPG game Asheron's Call. metaf provides full-featured capabilities for editing, and very straightforward bidirectional translation between .met/.nav and .af, with VirindiTank still running the end results. Requires .NET Core. Notepad++ strongly recommended.
 
 **The necessary files to run metaf are in a zip file in the 'releases' directory. Read the text file metafREADME.af that's in there.**
