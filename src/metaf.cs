@@ -71,7 +71,7 @@ namespace metaf
 	}
 #endif
 	class CmdLnParms {
-		public static string version = "METa Alternate Format (metaf), v.0.7.1.0     GPLv3 Copyright (C) 2020     J. Edwards";
+		public static string version = "METa Alternate Format (metaf), v.0.7.1.1     GPLv3 Copyright (C) 2020     J. Edwards";
 		public static string newFileName = "__NEW__.af";
 		public static string newnavFileName = "__NEWNAV__.af";
 		public static string readmeFileName = "metafREADME.af";
@@ -389,7 +389,7 @@ namespace metaf
 
 			["flw"] = "'flw' requires two inputs: integer target GUID (in hexidecimal), string target name. (" + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
 			["pnt"] = "'pnt' requires hree inputs: double xyz-coordinates. (" + rx.typeInfo["_D"] + ")",
-			["rcl"] = "'rcl' requires four inputs: double xyz-coordinates, string recall spell name (exact). (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")\nRecognized recall spell names:\n* " + rx.oD + "Primary Portal Recall" + rx.cD + "\n* " + rx.oD + "Secondary Portal Recall" + rx.cD + "\n* " + rx.oD + "Lifestone Recall" + rx.cD + "\n* " + rx.oD + "Portal Recall" + rx.cD + "\n* " + rx.oD + "Recall Aphus Lassel" + rx.cD + "\n* " + rx.oD + "Recall the Sanctuary" + rx.cD + "\n* " + rx.oD + "Recall to the Singularity Caul" + rx.cD + "\n* " + rx.oD + "Glenden Wood Recall" + rx.cD + "\n* " + rx.oD + "Aerlinthe Recall" + rx.cD + "\n* " + rx.oD + "Mount Lethe Recall" + rx.cD + "\n* " + rx.oD + "Ulgrim's Recall" + rx.cD + "\n* " + rx.oD + "Bur Recall" + rx.cD + "\n* " + rx.oD + "Paradox-touched Olthoi Infested Area Recall" + rx.cD + "\n* " + rx.oD + "Call of the Mhoire Forge" + rx.cD + "\n* " + rx.oD + "Lost City of Neftet Recall" + rx.cD + "\n* " + rx.oD + "Return to the Keep" + rx.cD + "\n* " + rx.oD + "Facility Hub Recall" + rx.cD + "\n* " + rx.oD + "Colosseum Recall" + rx.cD + "\n* " + rx.oD + "Gear Knight Invasion Area Camp Recall" + rx.cD + "\n* " + rx.oD + "Rynthid Recall" + rx.cD + "\n* " + rx.oD + "Lifestone Sending" + rx.cD,
+			["rcl"] = "'rcl' requires four inputs: double xyz-coordinates, string recall spell name (exact). (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")\nRecognized recall spell names:\n* " + rx.oD + "Primary Portal Recall" + rx.cD + "\n* " + rx.oD + "Secondary Portal Recall" + rx.cD + "\n* " + rx.oD + "Lifestone Recall" + rx.cD + "\n* " + rx.oD + "Lifestone Sending" + rx.cD + "\n* " + rx.oD + "Portal Recall" + rx.cD + "\n* " + rx.oD + "Recall Aphus Lassel" + rx.cD + "\n* " + rx.oD + "Recall the Sanctuary" + rx.cD + "\n* " + rx.oD + "Recall to the Singularity Caul" + rx.cD + "\n* " + rx.oD + "Glenden Wood Recall" + rx.cD + "\n* " + rx.oD + "Aerlinthe Recall" + rx.cD + "\n* " + rx.oD + "Mount Lethe Recall" + rx.cD + "\n* " + rx.oD + "Ulgrim's Recall" + rx.cD + "\n* " + rx.oD + "Bur Recall" + rx.cD + "\n* " + rx.oD + "Paradox-touched Olthoi Infested Area Recall" + rx.cD + "\n* " + rx.oD + "Call of the Mhoire Forge" + rx.cD + "\n* " + rx.oD + "Colosseum Recall" + rx.cD + "\n* " + rx.oD + "Facility Hub Recall" + rx.cD + "\n* " + rx.oD + "Gear Knight Invasion Area Camp Recall" + rx.cD + "\n* " + rx.oD + "Lost City of Neftet Recall" + rx.cD + "\n* " + rx.oD + "Return to the Keep" + rx.cD + "\n* " + rx.oD + "Rynthid Recall" + rx.cD + "\n* " + rx.oD + "Viridian Rise Recall" + rx.cD + "\n* " + rx.oD + "Viridian Rise Great Tree Recall" + rx.cD + "\n* " + rx.oD + "Celestial Hand Stronghold Recall" + rx.cD + "\n* " + rx.oD + "Radiant Blood Stronghold Recall" + rx.cD + "\n* " + rx.oD + "Eldrytch Web Stronghold Recall" + rx.cD,
 			["pau"] = "'pau' requires four inputs: double xyz-coordinates, double pause time (in seconds). (" + rx.typeInfo["_D"] + ")",
 			["cht"] = "'cht' requires four inputs: double xyz-coordinates, string recall spell name (exact). (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")",
 			["vnd"] = "'vnd' requires five inputs: double xyz-coordinates, integer vendor GUID (in hexidecimal), string vendor name. (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
@@ -1230,17 +1230,19 @@ coding your metas (especially the very long VT function names).
 							Colored more lightly because plain points tend to be 'the movement between the action'.
 		   Recall Spell - rcl   d X   d Y   d Z   {s Full Name of Recall Spell}
 							Recognized Full Recall Spell Names are, exactly:
-								{Primary Portal Recall}					{Bur Recall}
-								{Secondary Portal Recall}				{Paradox-touched Olthoi Infested Area Recall}
-								{Lifestone Recall}						{Call of the Mhoire Forge}
-								{Portal Recall}							{Lost City of Neftet Recall}
-								{Recall Aphus Lassel}					{Return to the Keep}
-								{Recall the Sanctuary}					{Facility Hub Recall}
-								{Recall to the Singularity Caul}		{Colosseum Recall}
-								{Glenden Wood Recall}					{Gear Knight Invasion Area Camp Recall}
-								{Aerlinthe Recall}						{Rynthid Recall}
-								{Mount Lethe Recall}					{Lifestone Sending}
-								{Ulgrim's Recall}
+								{Primary Portal Recall}					{Paradox-touched Olthoi Infested Area Recall}
+								{Secondary Portal Recall}				{Call of the Mhoire Forge}
+								{Lifestone Recall}						{Colosseum Recall}
+								{Lifestone Sending}						{Facility Hub Recall}
+								{Portal Recall}							{Gear Knight Invasion Area Camp Recall}
+								{Recall Aphus Lassel}					{Lost City of Neftet Recall}
+								{Recall the Sanctuary}					{Return to the Keep}
+								{Recall to the Singularity Caul}		{Rynthid Recall}
+								{Glenden Wood Recall}					{Viridian Rise Recall}
+								{Aerlinthe Recall}						{Viridian Rise Great Tree Recall}}
+								{Mount Lethe Recall}					{Celestial Hand Stronghold Recall}
+								{Ulgrim's Recall}						{Radiant Blood Stronghold Recall}
+								{Bur Recall}							{Eldrytch Web Stronghold Recall}
 				  Pause - pau   d X   d Y   d Z   d Pause (in ms)
 		ChatField (any) - cht   d X   d Y   d Z   {s ChatInput}
 			 Use Vendor - vnd   d X   d Y   d Z   h Target GUID   {s Target Name}
@@ -4451,6 +4453,7 @@ coding your metas (especially the very long VT function names).
 			this._recallSpells.Add(48, "Primary Portal Recall");
 			this._recallSpells.Add(2647, "Secondary Portal Recall");
 			this._recallSpells.Add(1635, "Lifestone Recall");
+			this._recallSpells.Add(1636, "Lifestone Sending");
 			this._recallSpells.Add(2645, "Portal Recall");
 			this._recallSpells.Add(2931, "Recall Aphus Lassel");
 			this._recallSpells.Add(2023, "Recall the Sanctuary");
@@ -4462,13 +4465,19 @@ coding your metas (especially the very long VT function names).
 			this._recallSpells.Add(4084, "Bur Recall");
 			this._recallSpells.Add(4198, "Paradox-touched Olthoi Infested Area Recall");
 			this._recallSpells.Add(4128, "Call of the Mhoire Forge");
+			this._recallSpells.Add(4213, "Colosseum Recall");
+			this._recallSpells.Add(5175, "Facility Hub Recall");
+			this._recallSpells.Add(5330, "Gear Knight Invasion Area Camp Recall");
 			this._recallSpells.Add(5541, "Lost City of Neftet Recall");
 			this._recallSpells.Add(4214, "Return to the Keep");
-			this._recallSpells.Add(5175, "Facility Hub Recall");
-			this._recallSpells.Add(4213, "Colosseum Recall");
-			this._recallSpells.Add(5330, "Gear Knight Invasion Area Camp Recall");
+			//this._recallSpells.Add(5175, "Facility Hub Recall"); // repeat of above; unnecessary
 			this._recallSpells.Add(6150, "Rynthid Recall");
-			this._recallSpells.Add(1636, "Lifestone Sending");
+			this._recallSpells.Add(6321, "Viridian Rise Recall");
+			this._recallSpells.Add(6322, "Viridian Rise Great Tree Recall");
+																			  // vvvv Not sure why, but the virindi spelldump lists these SpellIDs instead.
+			this._recallSpells.Add(6325, "Celestial Hand Stronghold Recall"); // 4907
+			this._recallSpells.Add(6327, "Radiant Blood Stronghold Recall");  // 4909
+			this._recallSpells.Add(6326, "Eldrytch Web Stronghold Recall");   // 4908
 		}
 		public override NTypeID typeid { get { return NTypeID.Recall; } }
 		private double[] _xyz
@@ -4481,6 +4490,7 @@ coding your metas (especially the very long VT function names).
 			["Primary Portal Recall"] = 48,
 			["Secondary Portal Recall"] = 2647,
 			["Lifestone Recall"] = 1635,
+			["Lifestone Sending"] = 1636,
 			["Portal Recall"] = 2645,
 			["Recall Aphus Lassel"] = 2931,
 			["Recall the Sanctuary"] = 2023,
@@ -4492,13 +4502,17 @@ coding your metas (especially the very long VT function names).
 			["Bur Recall"] = 4084,
 			["Paradox-touched Olthoi Infested Area Recall"] = 4198,
 			["Call of the Mhoire Forge"] = 4128,
+			["Colosseum Recall"] = 4213,
+			["Facility Hub Recall"] = 5175,
+			["Gear Knight Invasion Area Camp Recall"] = 5330,
 			["Lost City of Neftet Recall"] = 5541,
 			["Return to the Keep"] = 4214,
-			["Facility Hub Recall"] = 5175,
-			["Colosseum Recall"] = 4213,
-			["Gear Knight Invasion Area Camp Recall"] = 5330,
 			["Rynthid Recall"] = 6150,
-			["Lifestone Sending"] = 1636
+			["Viridian Rise Recall"] = 6321,
+			["Viridian Rise Great Tree Recall"] = 6322,
+			["Celestial Hand Stronghold Recall"] = 6325,
+			["Radiant Blood Stronghold Recall"] = 6327,
+			["Eldrytch Web Stronghold Recall"] = 6326
 		};
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
