@@ -71,7 +71,7 @@ namespace metaf
 	}
 #endif
 	class CmdLnParms {
-		public static string version = "METa Alternate Format (metaf), v.0.7.1.1     GPLv3 Copyright (C) 2020     J. Edwards";
+		public static string version = "METa Alternate Format (metaf), v.0.7.1.2     GPLv3 Copyright (C) 2020     J. Edwards";
 		public static string newFileName = "__NEW__.af";
 		public static string newnavFileName = "__NEWNAV__.af";
 		public static string readmeFileName = "metafREADME.af";
@@ -4162,12 +4162,13 @@ coding your metas (especially the very long VT function names).
 			f.line.Add("n");
 			f.line.Add("2");
 			f.line.Add("s");
-			f.line.Add("o");
+			f.line.Add("n"); //"o"
 			f.line.Add("s");
 			f.line.Add(this._m_vw);
 			f.line.Add("s");
-			f.line.Add("v");
-			f.line.Add("s");
+			f.line.Add("x"); // "v"
+			f.line.Add("ba"); // "s"
+			f.line.Add((this._m_xml).Length.ToString()); // nothing??
 			f.line.Add(this._m_xml);
 			ACreateView.breakitFixIndices.Add(f.line.Count - 1); // For dealing with the CreateView "bug"
 		}
