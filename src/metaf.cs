@@ -53,6 +53,14 @@ THIS FILE'S ORGANIZATION, ROUGHLY:
 	* State class
 	* Meta class
 	* Main
+
+
+Ideas for possible future items:
+	* Utility Belt functions added to documentation and mark-up XMLs
+	* Support external file references and content for "Create View" XML (auto flattened)
+		- Also for including states/navs defined in external files??
+
+	* Sort of related: "metaf like" Loot Rule Editor?
 */
 
 //#define _DBG_
@@ -71,7 +79,7 @@ namespace metaf
 	}
 #endif
 	class CmdLnParms {
-		public static string version = "METa Alternate Format (metaf), v.0.7.1.2     GPLv3 Copyright (C) 2020     J. Edwards";
+		public static string version = "METa Alternate Format (metaf), v.0.7.1.2b     GPLv3 Copyright (C) 2020     J. Edwards";
 		public static string newFileName = "__NEW__.af";
 		public static string newnavFileName = "__NEWNAV__.af";
 		public static string readmeFileName = "metafREADME.af";
@@ -873,6 +881,7 @@ coding your metas (especially the very long VT function names).
 	~~ STATE, RULE																											
 
 		STATE:   {s Name}   (Rule+ indirectly)
+				IN-GAME: drop-down menu (or ""New State..."" button) at left near top when creating a new Rule.
 				DETAILS: Two inputs, one direct (on the same line) and one indirect (on subsequent lines). The direct input,
 				Name, declares this state's name and must be distinct from all other state names. The indirect input, Rule+,
 				indicates that every state must contain at least one Rule (IF-DO pair) on the following lines.
@@ -882,6 +891,7 @@ coding your metas (especially the very long VT function names).
 						--> Defines a state named 'Hello, world.' containing a single rule (IF-DO pair) that does nothing.
 						
 		IF:   p Condition
+				IN-GAME: generally references the operations in the pane on left side.
 				DETAILS: One input. Condition may be any type (including Any/All, which may contain more inside). Every
 				Condition (IF) must be followed by an Action (DO).
 				EXAMPLE: IF: Any
@@ -889,6 +899,7 @@ coding your metas (especially the very long VT function names).
 						--> Defines a Condition containing an Any operation (which itself contains an Always operation).
 
 		DO:   p Action
+				IN-GAME: generally references the operations in the pane on right side.
 				DETAILS: One input. Action may be any type (including DoAll, which may contain more inside).
 				EXAMPLE: DO: DoAll
 								EmbedNav MyFavorite follow
@@ -897,6 +908,7 @@ coding your metas (especially the very long VT function names).
 	~~ CONDITION operations (IF:)																							
 
 		All   (none directly)
+				IN-GAME: ""All"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: No direct inputs (on the same line) but does wrap zero or more Condition operations inside it (on
 				following lines, tabbed in one more time). True if all directly-wrapped operations are True. (Empty-All is
 				true; Not empty-All is false.) Do not confuse this with the Action DoAll.
@@ -907,11 +919,13 @@ coding your metas (especially the very long VT function names).
 							 evaluate to True. (Never evaluates to False.)
 
 		Always   (none)
+				IN-GAME: ""Always"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: No inputs. True always. (Always do the corresponding Action.)
 				EXAMPLE: Always
 						 --> Always is True. (Always True.)
 
 		Any   (none directly)
+				IN-GAME: ""Any"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: No direct inputs (on the same line) but does wrap zero or more Condition operations inside it (on
 				following lines, tabbed in one more time). True if any directly-wrapped operations are True. (Empty-Any is
 				false; Not empty-Any is true.)
@@ -922,21 +936,25 @@ coding your metas (especially the very long VT function names).
 							 evaluates to True.)
 
 		BlockE   h Landblock
+				IN-GAME: ""Landblock =="" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: One input. True if character location is currently in Landblock.
 				EXAMPLE: BlockE 8B370000
 						 --> True if leading 4 'digits' of character's @loc match leading 4 'digits'.
 
 		BuPercentGE   i Burden
+				IN-GAME: ""Burden Percent >="" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: One input. True if character burden percent is >= Burden.
 				EXAMPLE: BuPercentGE 110
 						 --> True if character burden is >= 110%.
 
 		CellE   h Landcell
+				IN-GAME: ""Landcell =="" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: One input. True if character location is currently in Landcell.
 				EXAMPLE: CellE 8B37E3A1
 						 --> True if all 8 'digits' of character's @loc match all 8 'digits'.
 
 		ChatCapture   {r Pattern}   {s ColorIdList}
+				IN-GAME: ""Chat Message Capture"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: Two inputs. True if both Pattern matches a ChatWindow message and that message's color is in the
 						 ColorIdList. (Empty fields for either/both count as a match for that field.) Used to 'capture' text
 						 into internal variables, which are given the names designated within Pattern with capturegroup_
@@ -968,84 +986,100 @@ coding your metas (especially the very long VT function names).
 									 	Variable capturecolor holds matched-message's colorID.
 
 		ChatMatch   {r Pattern}
+				IN-GAME: ""Chat Message"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: One input. True if Pattern regex matches a ChatWindow message. (Matches any message if empty.)
 				EXAMPLE: ChatMatch {^.*Eskarina.* (says|tells you), \"".+\""$}
 						 --> Simply detects a regex match in the ChatWindow. Does not capture anything.
 
 		Death   (none)
+				IN-GAME: ""Character Death"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: No inputs. True if character death detected.
 				EXAMPLE: Death
 						 --> Triggered on character death.
 
 		DistToRteGE   d Distance
+				IN-GAME: ""Dist any route pt >="" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: One input. True if character's shortest-distance to current navroute is >= Distance (in yards).
 				EXAMPLE: DistToRteGE
 						 --> True when character exceeds  distance from current navroute.
 
 		ExitPortal   (none)
+				IN-GAME: ""Portalspace Exited"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: No inputs. True upon exiting portalspace.
 				EXAMPLE: ExitPortal
 						 --> True when character leaves portalspace.
 
 		Expr   {s Code}
+				IN-GAME: ""Expression"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: One input. True if Code evaluates to True. Do not confuse this with the Action DoExpr.
 				EXAMPLE: Expr {7==getobjectinternaltype[getvar[myvar]]}
 						 --> True if variable myvar is an object type.
 						(See: http://www.virindi.net/wiki/index.php/Meta_Expressions#Function_Information )
 
 		IntoPortal   (none)
+				IN-GAME: ""Portalspace Entered"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: No inputs. True upon entering portalspace.
 				EXAMPLE: IntoPortal
 						 --> True when character enters portalspace.
 
 		ItemCountGE   i Count   {s Item}
+				IN-GAME: ""Inventory Item Count >="" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: Two inputs. True if number of Item in inventory is >= Count. Is not a regex.
 				EXAMPLE: ItemCountGE 25 {Prismatic Taper}
 						 --> True when Prismatic Taper supply in inventory is >= 25.
 
 		ItemCountLE   i Count   {s Item}
+				IN-GAME: ""Inventory Item Count <="" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: Two inputs. True if number of Item in inventory is <= Count. Is not a regex.
 				EXAMPLE: ItemCountLE 25 {Prismatic Taper}
 						 --> True when Prismatic Taper supply in inventory is <= 25. (Uh-oh!)
 
 		MainSlotsLE   i Count
+				IN-GAME: ""Pack Slots <="" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: One input. True if number of empty slots remaining in character's main pack
 				inventory is <= Count.
 				EXAMPLE: MainSlotsLE 7
 						 --> True when <=7 inventory slots remain empty in character's main pack.
 
 		MobsInDist_Name   i Count   d Distance   {r Name}
+				IN-GAME: ""Monster Name Count Within Distance"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: Three inputs. True if number of (regex-match) monster Name within Distance is >= Count. Completely
 				ignores monster priority (including if it's -1).
 				EXAMPLE: MobsInDist_Name 5 13.7 {Drudge Lurker}
 						 --> True when >=5 Drudge Lurkers are within 13.7 yards of character.
 
 		MobsInDist_Priority   i Count   d Distance   i Priority
+				IN-GAME: ""Monster Priority Count Within Distance"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: Three inputs. True if number of exact-Priority monsters within Distance is >= Count.
 				EXAMPLE: MobsInDist_Priority 6 4.7 2
 						 --> True when >=6 monsters of priority >=2 are within 4.7 yards of character.
 
 		NavEmpty   (none)
+				IN-GAME: ""Navroute empty"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: No inputs. True if current navroute is empty.
 				EXAMPLE: NavEmpty
 						 --> True when the current navroute is empty.
 
 		NeedToBuff   (none)
+				IN-GAME: ""Need to Buff"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: No inputs. True if VTank's settings determine character needs to buff.
 				EXAMPLE: NeedToBuff
 						 --> True when VTank's settings determine the character requires buffing.
 
 		Never   (none)
+				IN-GAME: ""Never"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: No inputs. Never True. (Never do the corresponding Action.)
 				EXAMPLE: Never
 						 --> Never is False. (Never True.)
 
 		NoMobsInDist   d Distance
+				IN-GAME: ""No Monsters Within Distance"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: One input. True if there are no monsters within Distance of character. Ignores Priority entirely.
 				EXAMPLE: NoMobsInDist 20.6
 						 --> True when no mobs are within 20.6 yards of character.
 
 		Not   p Condition
+				IN-GAME: ""Not"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: One input. True if Condition operation is False. (May be All or Any.)
 				EXAMPLE: Not All
 							Always
@@ -1053,6 +1087,7 @@ coding your metas (especially the very long VT function names).
 						 --> The Not is True because it inverts the All, which is False.
 
 		PSecsInStateGE   i Seconds
+				IN-GAME: ""Seconds in state (P) >="" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: One input. True if time elapsed since entering current state >= Seconds.
 				Persistent timer; does not reset if meta is stopped/started.
 				EXAMPLE: PSecsInStateGE 15
@@ -1060,6 +1095,7 @@ coding your metas (especially the very long VT function names).
 							 execution is turned off/on.
 
 		SecsInStateGE   i Seconds
+				IN-GAME: ""Seconds in state >="" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: One input. True if time elapsed since entering current state >= Seconds. Resets timer if meta is
 				stopped/started.
 				EXAMPLE: SecsInStateGE 12
@@ -1068,6 +1104,7 @@ coding your metas (especially the very long VT function names).
 							 and back on, as if it's just entered the state.)
 				
 		SecsOnSpellGE   i Seconds   i SpellID
+				IN-GAME: ""Time Left On Spell >="" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: Two inputs. True if time remaining on spell with SpellID is >= Seconds.
 				EXAMPLE: SecsOnSpellGE 120 4291
 						 --> True if >=120 seconds remain on 'Incantation of Armor Self', which has a SpellID of 4291.
@@ -1075,11 +1112,13 @@ coding your metas (especially the very long VT function names).
 							 SpellID column.)
 				
 		VendorOpen   (none)
+				IN-GAME: ""Any Vendor Open"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: No inputs. True when any vendor window is opened.
 				EXAMPLE: VendorOpen
 						 --> True if any vendor window is open.
 
 		VendorClosed   (none)
+				IN-GAME: ""Vendor Closed"" on Condition drop-down menu (top left when defining a Rule).
 				DETAILS: No inputs. True when a vendor window is closed.
 				EXAMPLE: VendorClosed
 						 --> True when vendor window is closed.
@@ -1087,6 +1126,7 @@ coding your metas (especially the very long VT function names).
 	~~ ACTION operations (DO:)																								
 
 		CallState   {s ToState}   {s ReturnState}
+				IN-GAME: ""Call Meta State"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: Two inputs. Transitions to state ToState, placing ReturnState on the 'call stack' in order to
 				remember where to go when ready to return. (See: Return.) Keep CallState and Return in careful balance.
 				EXAMPLE: CallState {Do Something} {Done With Something}
@@ -1094,18 +1134,21 @@ coding your metas (especially the very long VT function names).
 							 popping, to 'return'.
 
 		Chat   {s Text}
+				IN-GAME: ""Chat Command"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: One input. 'Send' Text as Chat. Do not confuse this with the Action ChatExpr.
 				EXAMPLE: Chat {/vt jump 137 true 648}
 						 --> The text is entered into and 'sent' to the ChatWindow, causing VTank to turn your character to
 							 face a heading of 137 degrees, and then shift-jump after 'holding space' for 648 milliseconds.
 
 		ChatExpr   {s ChatCode}
+				IN-GAME: ""Chat Expression"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: One input. Evaluates ChatCode as a 'code', then 'sends' it to ChatWindow. Do not confuse this with
 				the Action Chat.
 				EXAMPLE: ChatExpr {\/t +getcharstringprop[1]+\, Hi\!}
 						 --> Character @tells itself, 'Hi!'
 
 		DoAll   (none directly)
+				IN-GAME: ""All"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: No direct inputs (on the same line) but does wrap zero or more Action operations inside it (on
 				following lines, tabbed in one more time). Do not confuse with Condition All.
 				EXAMPLE: DoAll
@@ -1114,11 +1157,13 @@ coding your metas (especially the very long VT function names).
 						 --> Sends Eskarina a direct message of 'Hi!', then emote-dances.
 
 		DoExpr   {s Code}
+				IN-GAME: ""Expression Action"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: One input. Executes Code. Do not confuse this with the Condition Expr, or the Action ChatExpr.
 				EXAMPLE: DoExpr {setvar[mycoords,getplayercoordinates[]]}
 						 --> Sets variable mycoords to character's current coordinates (coordinate object).
 
 		EmbedNav   l Tag   {s Name} {s Transform (optional)}
+				IN-GAME: ""Load Embedded Nav Route"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: Two inputs (or three). Tag is only used as a 'handle' to reference a navroute in the list of navs at
 				the bottom of a metaf file, where it is marked with the same Tag. Name is the name displayed in-game, when
 				you examine the embedded name in the meta. Note that Tag can be anything you want it to be, so long as it's a
@@ -1149,11 +1194,13 @@ coding your metas (especially the very long VT function names).
 							 In case you're wondering: South(40+) is {1 0 0 1 1.6 0 0} and North(60+) is {1 0 0 1 1.6 0.8 0}.
 
 		None   (none)
+				IN-GAME: ""None"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: No inputs. Do nothing. (Action: None.)
 				EXAMPLE: None
 						 --> Nothing happens.
 
 		Return   (none directly)
+				IN-GAME: ""Return From Call"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: No direct inputs but does expect a state to be on the 'call stack' because it needs to pop a
 				state from the stack in order to transition the meta to whatever that state is. (See CallState.) Keep
 				CallState and Return in careful balance.
@@ -1162,11 +1209,13 @@ coding your metas (especially the very long VT function names).
 							 the call stack, for later popping, to 'return'.
 
 		SetState   {s Name}
+				IN-GAME: ""Set Meta State"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: One input. Set current state to state Name.
 				EXAMPLE: SetState {Target Name}
 						 --> Meta transitions to state 'Target Name'.
 
 		SetWatchdog   d Distance   d Seconds   {s State name}
+				IN-GAME: ""Set Watchdog"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: Three inputs. You can set a watchdog in a state that is triggered if at any time while in that
 				state your character has not moved >=Distance over the preceding Seconds of time. If triggered, State is
 				called. (Returning from it, re-enters the original state.)
@@ -1175,21 +1224,25 @@ coding your metas (especially the very long VT function names).
 							the preceding 4.6 seconds, state 'Oh, no!' is called.
 
 		ClearWatchdog   (none)
+				IN-GAME: ""Clear Watchdog"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: No inputs. Clears the watchdog for the current state.
 				EXAMPLE: ClearWatchdog
 						--> Clears (gets rid of) the current watchdog in this state (if any).
 
 		GetOpt   {s Option}   {s Variable}
+				IN-GAME: ""Get VT Option"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: Two inputs. Gets the current value of the VirindiTank Option and saves it in Variable.
 				EXAMPLE: GetOpt {OpenDoors} {doors}
 						--> Gets current status of the 'OpenDoors' VirindiTank option, and stores it in variable 'doors'.
 
 		SetOpt   {s Option}   {s Expression}
+				IN-GAME: ""Set VT Option"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: Two inputs. Sets the VirindiTank Option based upon the results of evaluating Expression.
 				EXAMPLE: SetOpt {OpenDoors} {istrue[wobjectfindnearestdoor[]]}
 						--> Sets the VirindiTank 'OpenDoors' option to true if any doors are nearby, false otherwise.
 
 		CreateView   {s view Handle}   {s XML}
+				IN-GAME: ""Create View"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: Creates a Virindi View with the designated Handle, the layout of which is defined by XML. The XML
 				must be on a single line (no line breaks). ---- Are other controls (etc.) recognized? I don't know. For a
 				bit more, see: http://www.virindi.net/wiki/index.php/Meta_Views
@@ -1199,11 +1252,13 @@ coding your metas (especially the very long VT function names).
 							evaluates the expression 'chatbox[\/vt echo B1\!]'.
 
 		DestroyView   {s View}
+				IN-GAME: ""Destroy View"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: Destroy the designated View.
 				EXAMPLE: DestroyView {myview}
 						--> Destroys the Virindi View with handle 'myview'.
 						
 		DestroyAllViews   (none)
+				IN-GAME: ""Destroy All Views"" on Action drop-down menu (top right when defining a Rule).
 				DETAILS: No inputs. Destroys all views for this meta.
 				EXAMPLE: DestroyAllViews
 						--> Destroys any views that exist for this meta.
@@ -1211,6 +1266,7 @@ coding your metas (especially the very long VT function names).
 	~~ NAV TYPES (NAV:)																										
 
 		NAV:   l Tag   l Type
+				IN-GAME: Route tab. (Select Type from drop-down menu at bottom left.)
 				DETAILS: Two inputs. Tag is only used as a 'handle' to uniquely identify a nav  as distinct from all other
 				navs in the nav listing. Type is what type of nav it is. (See below.) Note that Tag can be anything you want
 				it to be, so long as it's a valid literal and is distinct from all other nav tags. (There's no reason it
@@ -1226,9 +1282,12 @@ coding your metas (especially the very long VT function names).
 	~~ NAV NODE FORMATS																										
 
 				 Follow - flw   h Target GUID   {s Target Name}
+							IN-GAME: Select another player; click ""FC"" (Follow Character) on mini-remote.
 				  Point - pnt   d X   d Y   d Z
+							IN-GAME: Route tab. ""Add"" button, at top, near right.
 							Colored more lightly because plain points tend to be 'the movement between the action'.
 		   Recall Spell - rcl   d X   d Y   d Z   {s Full Name of Recall Spell}
+							IN-GAME: Route tab. ""Add Recall"" button with drop-down menu to right of it, in middle.
 							Recognized Full Recall Spell Names are, exactly:
 								{Primary Portal Recall}					{Paradox-touched Olthoi Infested Area Recall}
 								{Secondary Portal Recall}				{Call of the Mhoire Forge}
@@ -1244,14 +1303,23 @@ coding your metas (especially the very long VT function names).
 								{Ulgrim's Recall}						{Radiant Blood Stronghold Recall}
 								{Bur Recall}							{Eldrytch Web Stronghold Recall}
 				  Pause - pau   d X   d Y   d Z   d Pause (in ms)
+							IN-GAME: Route tab. ""Add Pause"" button with 'seconds' text field to right of it, near bottom.
 		ChatField (any) - cht   d X   d Y   d Z   {s ChatInput}
+							IN-GAME: Route tab. ""Add Chat"" button with text field to right of it, at bottom right.
 			 Use Vendor - vnd   d X   d Y   d Z   h Target GUID   {s Target Name}
+							IN-GAME: Route tab. ""Open Vendor"" button at top right.
 		 Use Portal/NPC - ptl   d X   d Y   d Z   d TargetX   d TargetY   d TargetZ   i Target ObjectClass   {s Target Name}
+							IN-GAME: Route tab. ""Use Portal/NPC"" button, near top, near right.
 							Allowed ObjectClass: 14 (Portal), 37 (NPC), 10 (Container, e.g., 'Dangerous Portal Device').
 		    Talk to NPC - tlk   d X   d Y   d Z   d TargetX   d TargetY   d TargetZ   i Target ObjectClass   {s Target Name}
+							IN-GAME: Route tab. ""Add NPC Talk"" button, near top, on right.
 							Allowed ObjectClass: 37 (NPC).
 		 Nav Checkpoint - chk   d X   d Y   d Z
+							IN-GAME: Entered via chat command: /vt addnavcheckpoint
+									 http://www.virindi.net/wiki/index.php/Virindi_Tank_Commands
 			   Nav Jump - jmp   d X   d Y   d Z   d HeadingInDegrees   {s HoldShift (True|False)}   d Delay (in ms)
+							IN-GAME: Entered via chat command: /vt addnavjump [heading] [shift: true or false] [milliseconds]
+									 http://www.virindi.net/wiki/index.php/Virindi_Tank_Commands
 
 ~~																															
 ~~ 3. VIRINDITANK FUNCTIONS					http://www.virindi.net/wiki/index.php/Meta_Expressions#Function_Information		
