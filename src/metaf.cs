@@ -56,9 +56,11 @@ THIS FILE'S ORGANIZATION, ROUGHLY:
 
 
 Ideas for possible future items:
+	* Improve docs for newbies (clearer drag/drop, metaf isn't an editor, multi-file conversion(?))
 	* Utility Belt functions added to documentation and mark-up XMLs
 	* Support external file references and content for "Create View" XML (auto flattened)
 		- Also for including states/navs defined in external files??
+	* Default "[None]" names for EmbeddedNavs ??
 
 	* Sort of related: "metaf like" Loot Rule Editor?
 */
@@ -79,7 +81,7 @@ namespace metaf
 	}
 #endif
 	class CmdLnParms {
-		public static string version = "METa Alternate Format (metaf), v.0.7.1.2b     GPLv3 Copyright (C) 2020     J. Edwards";
+		public static string version = "METa Alternate Format (metaf), v.0.7.2.0     GPLv3 Copyright (C) 2021     J. Edwards";
 		public static string newFileName = "__NEW__.af";
 		public static string newnavFileName = "__NEWNAV__.af";
 		public static string readmeFileName = "metafREADME.af";
@@ -160,7 +162,7 @@ namespace metaf
 		Follow = -2, // workaround = MY VALUE FOR THIS, not VTank's!
 		Unassigned = -1,
 		Point = 0,
-		// ??? = 1, // maybe was used for Follow in the past ???
+		Portal = 1, // DEPRECATED Portal node (only has one set of coordinates instead of two (like "ptl" type has)
 		Recall = 2,
 		Pause = 3,
 		Chat = 4,
@@ -169,6 +171,7 @@ namespace metaf
 		NPCTalk = 7,
 		Checkpoint = 8,
 		Jump = 9
+		//Other = 99 // defined in VTank source
 	};
 
 	public enum M_NTypeID // These parallel the NTypeID list, but are used in the metaf file, for NAV node types, by NAME, not by value
@@ -176,7 +179,7 @@ namespace metaf
 		flw = -2,
 		Unassigned = -1,
 		pnt = 0,
-		// ??? = 1, // maybe was used for Follow in the past ???
+		prt = 1, // DEPRECATED Portal node (only has one set of coordinates instead of two (like "ptl" type has)
 		rcl = 2,
 		pau = 3,
 		cht = 4,
@@ -185,6 +188,7 @@ namespace metaf
 		tlk = 7,
 		chk = 8,
 		jmp = 9
+		// otr = 99 // "Other" is in VTank source
 	};
 
 	[global::System.Serializable]
@@ -271,7 +275,7 @@ namespace metaf
 			["StateIfDoNav"] = new Regex(@"^(?<tabs>[\t]*)(?<type>STATE\:|IF\:|DO\:|NAV\:)", RegexOptions.Compiled),
 			["AnyConditionOp"] = new Regex(@"^(?<tabs>[\t]*)\s*(?<op>Never|Always|All|Any|ChatMatch|MainSlotsLE|SecsInStateGE|NavEmpty|Death|VendorOpen|VendorClosed|ItemCountLE|ItemCountGE|MobsInDist_Name|MobsInDist_Priority|NeedToBuff|NoMobsInDist|BlockE|CellE|IntoPortal|ExitPortal|Not|PSecsInStateGE|SecsOnSpellGE|BuPercentGE|DistToRteGE|Expr|ChatCapture)", RegexOptions.Compiled),
 			["AnyActionOp"] = new Regex(@"^(?<tabs>[\t]*)\s*(?<op>None|SetState|DoAll|EmbedNav|CallState|Return|DoExpr|ChatExpr|Chat|SetWatchdog|ClearWatchdog|GetOpt|SetOpt|CreateView|DestroyView|DestroyAllViews)", RegexOptions.Compiled),
-			["AnyNavNodeType"] = new Regex(@"^\t(?<type>flw|pnt|rcl|pau|cht|vnd|ptl|tlk|chk|jmp)", RegexOptions.Compiled),
+			["AnyNavNodeType"] = new Regex(@"^\t(?<type>flw|pnt|prt|rcl|pau|cht|vnd|ptl|tlk|chk|jmp)", RegexOptions.Compiled),
 			["GuessOpSwap"] = new Regex(@"^\t(?<op>DoAll|DoExpr|All|Expr)", RegexOptions.Compiled) // I expect All and Expr to often be accidentally used instead of DoAll and DoExpr; help the users out...
 		};
 
@@ -327,7 +331,8 @@ namespace metaf
 			["DestroyAllViews"] = R_Empty,
 
 			["flw"] = new Regex(@"^\s+(?<h>" + _H + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
-			["pnt"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")$", RegexOptions.Compiled), 
+			["pnt"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")$", RegexOptions.Compiled),
+			["prt"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<h>" + _H + @")$", RegexOptions.Compiled), 
 			["rcl"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
 			["pau"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<d4>" + _D + ")$", RegexOptions.Compiled), 
 			["cht"] = new Regex(@"^\s+(?<d>" + _D + @")\s+(?<d2>" + _D + @")\s+(?<d3>" + _D + @")\s+(?<s>" + _S + ")$", RegexOptions.Compiled), 
@@ -396,7 +401,8 @@ namespace metaf
 			["DestroyAllViews"] = "'DestroyAllViews' requires: no inputs.",
 
 			["flw"] = "'flw' requires two inputs: integer target GUID (in hexidecimal), string target name. (" + rx.typeInfo["_I"] + " " + rx.typeInfo["_S"] + ")",
-			["pnt"] = "'pnt' requires hree inputs: double xyz-coordinates. (" + rx.typeInfo["_D"] + ")",
+			["pnt"] = "'pnt' requires three inputs: double xyz-coordinates. (" + rx.typeInfo["_D"] + ")",
+			["prt"] = "'prt' requires four inputs: double xyz-coordinates, integer portal GUID (in hexidecimal). (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_I"] + ")",
 			["rcl"] = "'rcl' requires four inputs: double xyz-coordinates, string recall spell name (exact). (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")\nRecognized recall spell names:\n* " + rx.oD + "Primary Portal Recall" + rx.cD + "\n* " + rx.oD + "Secondary Portal Recall" + rx.cD + "\n* " + rx.oD + "Lifestone Recall" + rx.cD + "\n* " + rx.oD + "Lifestone Sending" + rx.cD + "\n* " + rx.oD + "Portal Recall" + rx.cD + "\n* " + rx.oD + "Recall Aphus Lassel" + rx.cD + "\n* " + rx.oD + "Recall the Sanctuary" + rx.cD + "\n* " + rx.oD + "Recall to the Singularity Caul" + rx.cD + "\n* " + rx.oD + "Glenden Wood Recall" + rx.cD + "\n* " + rx.oD + "Aerlinthe Recall" + rx.cD + "\n* " + rx.oD + "Mount Lethe Recall" + rx.cD + "\n* " + rx.oD + "Ulgrim's Recall" + rx.cD + "\n* " + rx.oD + "Bur Recall" + rx.cD + "\n* " + rx.oD + "Paradox-touched Olthoi Infested Area Recall" + rx.cD + "\n* " + rx.oD + "Call of the Mhoire Forge" + rx.cD + "\n* " + rx.oD + "Colosseum Recall" + rx.cD + "\n* " + rx.oD + "Facility Hub Recall" + rx.cD + "\n* " + rx.oD + "Gear Knight Invasion Area Camp Recall" + rx.cD + "\n* " + rx.oD + "Lost City of Neftet Recall" + rx.cD + "\n* " + rx.oD + "Return to the Keep" + rx.cD + "\n* " + rx.oD + "Rynthid Recall" + rx.cD + "\n* " + rx.oD + "Viridian Rise Recall" + rx.cD + "\n* " + rx.oD + "Viridian Rise Great Tree Recall" + rx.cD + "\n* " + rx.oD + "Celestial Hand Stronghold Recall" + rx.cD + "\n* " + rx.oD + "Radiant Blood Stronghold Recall" + rx.cD + "\n* " + rx.oD + "Eldrytch Web Stronghold Recall" + rx.cD,
 			["pau"] = "'pau' requires four inputs: double xyz-coordinates, double pause time (in seconds). (" + rx.typeInfo["_D"] + ")",
 			["cht"] = "'cht' requires four inputs: double xyz-coordinates, string recall spell name (exact). (" + rx.typeInfo["_D"] + " " + rx.typeInfo["_S"] + ")",
@@ -449,6 +455,7 @@ namespace metaf
 ~~		rcl					tlk															
 ~~		pau					chk															
 ~~		cht					jmp															
+~~		prt (deprecated in VTank)														
 ~~}																						
 ";
 
@@ -473,6 +480,7 @@ namespace metaf
 ~~		rcl					tlk															
 ~~		pau					chk															
 ~~		cht					jmp															
+~~		prt (deprecated in VTank)														
 ~~ 																						
 
 ~~ 																						
@@ -845,6 +853,7 @@ coding your metas (especially the very long VT function names).
 	~~ NAV NODE FORMATS				
 				 Follow - flw   h Target GUID   {s Target Name}
 				  Point - pnt   d X   d Y   d Z
+				 Portal - prt   d X   d Y   d Z   h Portal GUID   [This type is DEPRECATED in VTank. Use 'ptl' instead.]
 		   Recall Spell - rcl   d X   d Y   d Z   {s Full Name of Recall Spell}
 				  Pause - pau   d X   d Y   d Z   d Pause (in ms)
 		ChatField (any) - cht   d X   d Y   d Z   {s ChatInput}
@@ -1286,6 +1295,8 @@ coding your metas (especially the very long VT function names).
 				  Point - pnt   d X   d Y   d Z
 							IN-GAME: Route tab. ""Add"" button, at top, near right.
 							Colored more lightly because plain points tend to be 'the movement between the action'.
+				 Portal - prt   d X   d Y   d Z   h Portal GUID
+							IN-GAME: Unavailable. (DEPRECATED in VTank.)
 		   Recall Spell - rcl   d X   d Y   d Z   {s Full Name of Recall Spell}
 							IN-GAME: Route tab. ""Add Recall"" button with drop-down menu to right of it, in middle.
 							Recognized Full Recall Spell Names are, exactly:
@@ -4509,6 +4520,64 @@ coding your metas (especially the very long VT function names).
 		}
 	}
 
+	class NPortal : NavNode // !!! VTank DEPRECATED !!!   line# for msgs good
+	{
+		private double _x, _y, _z;
+		private double[] _Txyz;
+		private int _guid;
+		private Nav _myNav;
+		public NPortal(Nav myNav) : base() { this._myNav = myNav; }
+		public override NTypeID typeid { get { return NTypeID.Portal; } }
+		private double[] _xyz
+		{
+			get { double[] t = { _x, _y, _z }; return t; }
+		}
+		override public void ImportFromMet(ref FileLines f) // line# for msgs good
+		{
+			try { this._x = Double.Parse(f.line[f.L++]); }
+			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			try { this._y = Double.Parse(f.line[f.L++]); }
+			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			try { this._z = Double.Parse(f.line[f.L++]); }
+			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			if (f.line[f.L++].CompareTo("0") != 0)
+				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
+			try { this._guid = Int32.Parse(f.line[f.L++]); }
+			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+		}
+		override public void ExportToMet(ref FileLines f)
+		{
+			_Txyz = _myNav.ApplyXF(_xyz);
+			f.line.Add(((int)this.typeid).ToString());
+			f.line.Add(this._Txyz[0].ToString());
+			f.line.Add(this._Txyz[1].ToString());
+			f.line.Add(this._Txyz[2].ToString());
+			f.line.Add("0");
+			f.line.Add(this._guid.ToString());
+		}
+		override public void ImportFromMetAF(ref FileLines f) // line# for msgs good
+		{   // FORMAT: prt myx myy myz guid
+			//int len = Math.Max(f.line[f.L].Length - 1, 0);
+			string thisLN = rx.R__2EOL.Replace(f.line[f.L].Substring(Math.Min(f.C, f.line[f.L++].Length)), "");
+			Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(thisLN);
+			//Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(f.line[f.L].Substring(Math.Min(f.C, f.line[f.L++].Length-1)));
+			if (!match.Success)
+				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
+			try
+			{
+				this._x = Double.Parse(match.Groups["d"].Value);
+				this._y = Double.Parse(match.Groups["d2"].Value);
+				this._z = Double.Parse(match.Groups["d3"].Value);
+				this._guid = Int32.Parse(match.Groups["h"].Value, System.Globalization.NumberStyles.HexNumber);
+			}
+			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
+		}
+		override public void ExportToMetAF(ref FileLines f)
+		{
+			f.line.Add("\t" + ((M_NTypeID)this.typeid).ToString() + " " + this._x.ToString() + " " + this._y.ToString() + " " + this._z.ToString() + " " + this._guid.ToString("X8"));
+		}
+	}
+
 	class NRecall : NavNode // line# for msgs good
 	{
 		private double _x, _y, _z;
@@ -5217,6 +5286,7 @@ coding your metas (especially the very long VT function names).
 			switch (nid)
 			{
 				case NTypeID.Point: return new NPoint(this);
+				case NTypeID.Portal: return new NPortal(this);
 				case NTypeID.Recall: return new NRecall(this);
 				case NTypeID.Pause: return new NPause(this);
 				case NTypeID.Chat: return new NChat(this);
@@ -5238,6 +5308,7 @@ coding your metas (especially the very long VT function names).
 		public Dictionary<string, NTypeID> nodeTypeStrToID = new Dictionary<string, NTypeID>()
 		{
 			["pnt"] = NTypeID.Point,
+			["prt"] = NTypeID.Portal,
 			["rcl"] = NTypeID.Recall,
 			["pau"] = NTypeID.Pause,
 			["cht"] = NTypeID.Chat,
