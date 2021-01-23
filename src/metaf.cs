@@ -81,7 +81,7 @@ namespace metaf
 	}
 #endif
 	class CmdLnParms {
-		public static string version = "METa Alternate Format (metaf), v.0.7.2.0     GPLv3 Copyright (C) 2021     J. Edwards";
+		public static string version = "METa Alternate Format (metaf), v.0.7.2.1     GPLv3 Copyright (C) 2021     J. Edwards";
 		public static string newFileName = "__NEW__.af";
 		public static string newnavFileName = "__NEWNAV__.af";
 		public static string readmeFileName = "metafREADME.af";
@@ -5453,9 +5453,10 @@ coding your metas (especially the very long VT function names).
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
-			f.line.Add("NAV: " + this.tag + " " + ((M_NavTypeID)this._type).ToString());
+			f.line.Add("NAV: " + this.tag + " " + ((M_NavTypeID)this._type).ToString() + " ~~ {");
 			foreach (NavNode nn in this._node)
 				nn.ExportToMetAF(ref f);
+			f.line.Add("~~ }");
 		}
 	}
 
@@ -5822,9 +5823,10 @@ coding your metas (especially the very long VT function names).
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
-			f.line.Add( "STATE: " + rx.oD + this._a_name + rx.cD);
+			f.line.Add( "STATE: " + rx.oD + this._a_name + rx.cD + " ~~ {");
 			foreach( Rule r in this._rule)
 				r.ExportToMetAF(ref f);
+			f.line.Add("~~ }");
 		}
 	}
 	class Meta : ImportExport // line# for msgs good
