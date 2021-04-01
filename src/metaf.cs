@@ -82,7 +82,7 @@ namespace metaf
 	}
 #endif
 	class CmdLnParms {
-		public static string version = "METa Alternate Format (metaf), v.0.7.3.1     GPLv3 Copyright (C) 2021     J. Edwards";
+		public static string version = "METa Alternate Format (metaf), v.0.7.3.2     GPLv3 Copyright (C) 2021     J. Edwards";
 		public static string newFileName = "__NEW__.af";
 		public static string newnavFileName = "__NEWNAV__.af";
 		public static string readmeFileName = "metafREADME.af";
@@ -632,6 +632,27 @@ I have mapped all the in-game meta operations to a set of recognized text comman
 TIP: My recommended first step for getting started is to export a .met file to .af and have a look at it. Generally, if you
 are stumped on how to express something in metaf that can be done directly in VirindiTank, then create it there, then export
 it to .af to see what it looks like. (I hope my metafReference.af file usually provides sufficient explanations, though.)
+
+TIP: While actively developing metas, you can hugely speed-up processes by setting up Notepad++ to let you rapidly convert
+files directly to/from the VirindiTank folder by using the _OverwriteDest.bat (see above) and a Notepad++ plugin:
+Step 0. Install Notepad++, and set-up _OverwriteDest.bat as described above/inside it.
+Step 1. Install NppExec plugin: go to Plugins -> Plugins Admin..., scroll down, check box by NppExec, and click Install (and
+Yes). There should now be an NppExec item on the Plugins menu.
+Step 2. Create executable script: Go to Plugins -> NppExec -> Execute..., input the three lines of text below (modifying it
+for your own '_OverwriteDest.bat' directory). After that, click Save..., name it (e.g., metafBatchOverwrite), press ENTER.
+	npp_save
+	cd $(CURRENT_DIRECTORY)
+	C:\Your_OverwriteDestBat_Directory\_OverwriteDest.bat ""$(FILE_NAME)""
+Step 3. Associate menu to script (added to bottom of NppExec submenu): Go to Plugins -> NppExec -> Advanced Options..., then:
+	a. In lower left, select your script in 'Associated script' dropdown menu.
+	b. Give it an 'Item name'; e.g., 'metaf (batch overwrite)'.
+	c. Click Add/Modify (which should add it to the window's upper left pane).
+	d. Click OK.
+	e. Restart Notepad++.
+Step 4. Set up a shortcut: Go to Settings -> Shortcut Mapper..., click 'Plugin commands' tab, and find your newly made
+command (probably near bottom). Select it, and click Modify to set-up whatever shortcut you want. E.g., Ctrl-Shift-M. (It
+will tell you in the lower left of the window if it finds any hotkey conflicts.) Click OK to set your shortcut. Click Close.
+Now, just use your shortcut any time you want to convert .met/.nav/.af files you're editing in Notepad++.
 
 ~~ 4. META STRUCTURE																										
 
@@ -1338,7 +1359,7 @@ coding your metas (especially the very long VT function names).
 								{Recall the Sanctuary}					{Return to the Keep}
 								{Recall to the Singularity Caul}		{Rynthid Recall}
 								{Glenden Wood Recall}					{Viridian Rise Recall}
-								{Aerlinthe Recall}						{Viridian Rise Great Tree Recall}}
+								{Aerlinthe Recall}						{Viridian Rise Great Tree Recall}
 								{Mount Lethe Recall}					{Celestial Hand Stronghold Recall}
 								{Ulgrim's Recall}						{Radiant Blood Stronghold Recall}
 								{Bur Recall}							{Eldrytch Web Stronghold Recall}
