@@ -63,8 +63,19 @@ Ideas for possible future items:
 	* Default "[None]" names for EmbeddedNavs ??
 	* Config file? (in/out folder(s)? overwrite? multi-file? UB function support?)
 
+	* USE: (?) capability (external/library file inclusion---navs, states, whatever)
+		- Track file and line(s)
+		- Remove STATE:-then-NAV: restriction
+	* "Continue" lines (e.g., ending in \ (pre-comment))
+	* Multi-line comments
+	* metaf "meta instructions" (e.g., to load navs into UB lists instead of directly embedding them)
+	* EmbedNav "reverse"
+
 	D Sort of related: "metaf like" Loot Rule Editor?
-*/
+
+0.7.3.2b -- added detection and error message for an obscure case (~30 lines from end of ADoAll.ImportFromMetAF)
+0.7.3.3 -- fixed processing line vs file line misalignment by adding an offset variable all over the place
+ */
 
 //#define _DBG_
 
@@ -78,11 +89,11 @@ namespace metaf
 {
 #if (_DBG_)
 	class myDebug {
-		public static string[] args = { "eskontrol.af" };
+		public static string[] args = { "__AutoCrafter_IB_corrupted.met" }; //{ "eskontrol.af" };
 	}
 #endif
 	class CmdLnParms {
-		public static string version = "METa Alternate Format (metaf), v.0.7.3.2     GPLv3 Copyright (C) 2021     J. Edwards";
+		public static string version = "METa Alternate Format (metaf), v.0.7.3.3     GPLv3 Copyright (C) 2021     J. Edwards";
 		public static string newFileName = "__NEW__.af";
 		public static string newnavFileName = "__NEWNAV__.af";
 		public static string readmeFileName = "metafREADME.af";
@@ -205,13 +216,14 @@ namespace metaf
 
 	public class FileLines
 	{
-		public int L;
-		public int C;
+		public int L; // line number
+		public int C; // column number
+		public int offset; // accounts for collapsing lines (in processing) so 'files lines' remain correct in error messages
 		public string path;
 		public List<string> line;
-		public FileLines() { this.L = this.C = 0; this.line = new List<string>(); }
-		public void GoToStart() { this.L = this.C = 0; }
-		public void Clear() { this.L = this.C = 0; this.line.Clear(); }
+		public FileLines() { this.L = this.C = this.offset = 0; this.line = new List<string>(); }
+		public void GoToStart() { this.L = this.C = this.offset = 0; }
+		public void Clear() { this.L = this.C = this.offset = 0; this.line.Clear(); }
 	}
 
 	public class rx
@@ -1599,13 +1611,13 @@ coding your metas (especially the very long VT function names).
 		public override CTypeID typeid { get { return CTypeID.Unassigned; } }
 		public CUnassigned(int d) : base(d) { }
 		override public void ImportFromMet(ref FileLines f)
-		{ throw new Exception("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Should never get here."); }
+		{ throw new Exception("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Should never get here."); }
 		override public void ExportToMet(ref FileLines f)
-		{ throw new Exception("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ExportToMet: Should never get here."); }
+		{ throw new Exception("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ExportToMet: Should never get here."); }
 		override public void ImportFromMetAF(ref FileLines f)
-		{ throw new Exception("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Should never get here."); }
+		{ throw new Exception("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Should never get here."); }
 		override public void ExportToMetAF(ref FileLines f)
-		{ throw new Exception("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ExportToMetAF: Should never get here."); }
+		{ throw new Exception("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ExportToMetAF: Should never get here."); }
 	}
 
 	class CNever : Condition // line# for msgs good
@@ -1615,9 +1627,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -1631,7 +1643,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 		}
 		override public void ExportToMetAF(ref FileLines f) {
 			f.line.Add(new String('\t', this.depth) + this.typeid.ToString());
@@ -1645,9 +1657,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -1661,7 +1673,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -1685,28 +1697,28 @@ coding your metas (especially the very long VT function names).
 			Condition tmpCond;
 			CTypeID cID;
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("K") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'K'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'K'.");
 			if (f.line[f.L++].CompareTo("V") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'V'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'V'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			try { this._count = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 			for (int i = 0; i < this._count; i++)
 			{
 				if (f.line[f.L++].CompareTo("i") != 0)
-					throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+					throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 				try { cID = (CTypeID)Int32.Parse(f.line[f.L++]); }
-				catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+				catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 
 				try { tmpCond = this._myRule.GetCondition(cID, this.depth + 1); }
-				catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Error. [" + e.Message + "]"); }
+				catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Error. [" + e.Message + "]"); }
 
 				tmpCond.ImportFromMet(ref f); // <--- recurse
 				this.condition.Add(tmpCond);
@@ -1738,7 +1750,7 @@ coding your metas (especially the very long VT function names).
 
 			// Is there something after the operation, even though there shouldn't be?
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo[this.typeid.ToString()]);
 
 			// It's a proper operation. Proceed. (This function only processes the operation keyords themselves, not any potential parameters they might have. It's the down-calls that do that part.)
 			while (true) // internal break-outs only
@@ -1750,7 +1762,7 @@ coding your metas (especially the very long VT function names).
 
 				// Hit end of file
 				if (f.L >= f.line.Count)
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Hit end-of-file but expected a Condition operation, or start of an Action ('DO'). [" + rx.getInfo["STATE:"] + "]");
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Hit end-of-file but expected a Condition operation, or start of an Action ('DO'). [" + rx.getInfo["STATE:"] + "]");
 
 				// Found first non-"blank" line. Try to get an operation (don't advance lines yet)
 				match = rx.getLeadIn["StateIfDoNav"].Match(f.line[f.L]);
@@ -1761,7 +1773,7 @@ coding your metas (especially the very long VT function names).
 						f.C = 0;
 						return;
 					}
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Missing Action ('DO:') part of Rule." + rx.getInfo[this.typeid.ToString()]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Missing Action ('DO:') part of Rule." + rx.getInfo[this.typeid.ToString()]);
 				}
 
 				// It better be a valid Condition op...
@@ -1770,27 +1782,27 @@ coding your metas (especially the very long VT function names).
 				{
 					Match tmatch = rx.getLeadIn["GuessOpSwap"].Match(f.line[f.L].Substring(f.C)); // don't advance line
 					if (tmatch.Success)
-						throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected a Condition operation. (Did you mix up 'All' and 'DoAll', or 'Expr' and 'DoExpr'?) " + rx.getInfo["Generic"]);
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected a Condition operation. " + rx.getInfo["Generic"]);
+						throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected a Condition operation. (Did you mix up 'All' and 'DoAll', or 'Expr' and 'DoExpr'?) " + rx.getInfo["Generic"]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected a Condition operation. " + rx.getInfo["Generic"]);
 				}
 				// It is.
 
 				// How is it tabbed ?
 				int nTabs = match.Groups["tabs"].Length;
 				if (nTabs <= Rule.ConditionContentTabLevel)
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Not tabbed-in enough to be inside a Condition's All/Any operation. " + rx.getInfo[this.typeid.ToString()]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Not tabbed-in enough to be inside a Condition's All/Any operation. " + rx.getInfo[this.typeid.ToString()]);
 				if (nTabs <= depth)
 				{   // return, since now done with this operation
 					f.C = nTabs; // Math.Max(nTabs - 1, 0);
 					return;
 				}
 				if (nTabs > depth + 1) // error
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Tabbed-in too far. " + rx.getInfo[this.typeid.ToString()]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Tabbed-in too far. " + rx.getInfo[this.typeid.ToString()]);
 
 				// Here: #tabs does equal depth+1; try to import this op.
 				Condition tmpCond;
 				try { tmpCond = this._myRule.GetCondition(this._myRule.conditionStrToID[match.Groups["op"].Value], this.depth + 1); }
-				catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Error. [" + e.Message + "]"); }
+				catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Error. [" + e.Message + "]"); }
 				f.C = match.Groups["op"].Index + match.Groups["op"].Length;
 				tmpCond.ImportFromMetAF(ref f); // <--- recurse
 				this.condition.Add(tmpCond);
@@ -1820,27 +1832,27 @@ coding your metas (especially the very long VT function names).
 			Condition tmpCond;
 			CTypeID cID;
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("K") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'K'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'K'.");
 			if (f.line[f.L++].CompareTo("V") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'V'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'V'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			try { this._count = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 			for (int i = 0; i < this._count; i++)
 			{
 				if (f.line[f.L++].CompareTo("i") != 0)
-					throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+					throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 				try { cID = (CTypeID)Int32.Parse(f.line[f.L++]); }
-				catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+				catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 				try { tmpCond = this._myRule.GetCondition(cID, this.depth + 1); }
-				catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Error. [" + e.Message + "]"); }
+				catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Error. [" + e.Message + "]"); }
 				tmpCond.ImportFromMet(ref f); // <--- recurse
 				this.condition.Add(tmpCond);
 			}
@@ -1872,7 +1884,7 @@ coding your metas (especially the very long VT function names).
 
 			// Is there something after the operation, even though there shouldn't be?
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo[this.typeid.ToString()]);
 
 			// It's a proper operation. Proceed. (This function only processes the operation keyords themselves, not any potential parameters they might have. It's the down-calls that do that part.)
 			while (true) // internal break-outs only
@@ -1884,7 +1896,7 @@ coding your metas (especially the very long VT function names).
 
 				// Hit end of file
 				if (f.L >= f.line.Count)
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Hit end-of-file but expected a Condition operation, or start of an Action. [" + rx.getInfo["STATE:"] + "]");
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Hit end-of-file but expected a Condition operation, or start of an Action. [" + rx.getInfo["STATE:"] + "]");
 
 				// Found first non-"blank" line. Try to get an operation (don't advance lines yet)
 				match = rx.getLeadIn["StateIfDoNav"].Match(f.line[f.L]);
@@ -1895,7 +1907,7 @@ coding your metas (especially the very long VT function names).
 						f.C = 0;
 						return;
 					}
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Missing Action ('DO:') part of Rule." + rx.getInfo[this.typeid.ToString()]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Missing Action ('DO:') part of Rule." + rx.getInfo[this.typeid.ToString()]);
 				}
 
 				// It better be a valid Condition op...
@@ -1904,27 +1916,27 @@ coding your metas (especially the very long VT function names).
 				{
 					Match tmatch = rx.getLeadIn["GuessOpSwap"].Match(f.line[f.L].Substring(f.C)); // don't advance line
 					if (tmatch.Success)
-						throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected a Condition operation. (Did you mix up 'All' and 'DoAll', or 'Expr' and 'DoExpr'?) " + rx.getInfo["Generic"]);
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected a Condition operation. " + rx.getInfo["Generic"]);
+						throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected a Condition operation. (Did you mix up 'All' and 'DoAll', or 'Expr' and 'DoExpr'?) " + rx.getInfo["Generic"]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected a Condition operation. " + rx.getInfo["Generic"]);
 				}
 				// It is.
 
 				// How is it tabbed ?
 				int nTabs = match.Groups["tabs"].Length;
 				if (nTabs <= Rule.ConditionContentTabLevel)
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Not tabbed-in enough to be inside a Condition's All/Any operation. " + rx.getInfo[this.typeid.ToString()]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Not tabbed-in enough to be inside a Condition's All/Any operation. " + rx.getInfo[this.typeid.ToString()]);
 				if (nTabs <= depth)
 				{   // return, since now done with this operation
 					f.C = nTabs; // Math.Max(nTabs - 1, 0);
 					return;
 				}
 				if (nTabs > depth + 1) // error
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Tabbed-in too far. " + rx.getInfo[this.typeid.ToString()]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Tabbed-in too far. " + rx.getInfo[this.typeid.ToString()]);
 
 				// Here: #tabs does equal depth+1; try to import this op.
 				Condition tmpCond;
 				try { tmpCond = this._myRule.GetCondition(this._myRule.conditionStrToID[match.Groups["op"].Value], this.depth + 1); }
-				catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Error. [" + e.Message + "]"); }
+				catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Error. [" + e.Message + "]"); }
 				f.C = match.Groups["op"].Index + match.Groups["op"].Length;
 				tmpCond.ImportFromMetAF(ref f); // <--- recurse
 				this.condition.Add(tmpCond);
@@ -1958,10 +1970,10 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_chat = f.line[f.L++];
 			//try{ this._chat = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 		}
 
 		override public void ExportToMet(ref FileLines f)
@@ -1978,10 +1990,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 			this._a_chat = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
 																									 //try { this._chat = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length-2); } // length is at least 2; remove delimiters
-																									 //catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+																									 //catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -1997,9 +2009,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			try { this._slots = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2013,10 +2025,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._slots = Int32.Parse(match.Groups["i"].Value); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 
 		override public void ExportToMetAF(ref FileLines f)
@@ -2032,9 +2044,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			try { this._seconds = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2048,10 +2060,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._seconds = Int32.Parse(match.Groups["i"].Value); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2066,9 +2078,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2082,7 +2094,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2097,9 +2109,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2113,7 +2125,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2128,9 +2140,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2144,7 +2156,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2159,9 +2171,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2175,7 +2187,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2202,36 +2214,36 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_invItem = f.line[f.L++];
 			//try { this._invItem = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("c") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'c'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'c'.");
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			try { this._invCount = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2258,13 +2270,13 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 			try
 			{
 				this._invCount = Int32.Parse(match.Groups["i"].Value);
 				this._a_invItem = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2291,36 +2303,36 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_invItem = f.line[f.L++];
 			//try { this._invItem = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("c") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'c'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'c'.");
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			try { this._invCount = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2347,13 +2359,13 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 			try
 			{
 				this._invCount = Int32.Parse(match.Groups["i"].Value);
 				this._a_invItem = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2381,44 +2393,44 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("3") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 3.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 3.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_regex = f.line[f.L++];
 			//try { this._regex = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("c") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'c'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'c'.");
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			try { this._count = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("r") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'r'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'r'.");
 			if (f.line[f.L++].CompareTo("d") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'd'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'd'.");
 			try { this._range = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2449,14 +2461,14 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 			try
 			{
 				this._count = Int32.Parse(match.Groups["i"].Value);
 				this._range = Double.Parse(match.Groups["d"].Value);
 				this._a_regex = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2474,43 +2486,43 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("3") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 3.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 3.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("p") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'p'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'p'.");
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			try { this._priority = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("c") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'c'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'c'.");
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			try { this._count = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("r") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'r'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'r'.");
 			if (f.line[f.L++].CompareTo("d") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'd'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'd'.");
 			try { this._range = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2541,14 +2553,14 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 			try
 			{
 				this._count = Int32.Parse(match.Groups["i"].Value);
 				this._range = Double.Parse(match.Groups["d"].Value);
 				this._priority = Int32.Parse(match.Groups["i2"].Value);
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2563,9 +2575,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2579,7 +2591,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2596,27 +2608,27 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("1") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 1.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 1.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("r") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'r'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'r'.");
 			if (f.line[f.L++].CompareTo("d") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'd'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'd'.");
 			try { this._range = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2639,10 +2651,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._range = Double.Parse(match.Groups["d"].Value); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2658,9 +2670,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			try { this._block = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2674,10 +2686,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._block = Int32.Parse(match.Groups["h"].Value, System.Globalization.NumberStyles.HexNumber); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2693,9 +2705,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			try { this._cell = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2709,10 +2721,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._cell = Int32.Parse(match.Groups["h"].Value, System.Globalization.NumberStyles.HexNumber); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2727,9 +2739,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2744,7 +2756,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2759,9 +2771,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2775,7 +2787,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2795,30 +2807,30 @@ coding your metas (especially the very long VT function names).
 			Condition tmpCond;
 			CTypeID cID;
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("K") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'K'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'K'.");
 			if (f.line[f.L++].CompareTo("V") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'V'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'V'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			try { this._count_ignored = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 
 			if (this._count_ignored != 1)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. 'Not' requires exactly one operand.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. 'Not' requires exactly one operand.");
 
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] File format error. Expected 'i'.");
 			try { cID = (CTypeID)Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] File format error. Expected an integer. [" + e.Message + "]"); }
 
 			try { tmpCond = this._myRule.GetCondition(cID, this.depth); } // don't increment depth
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Error. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Error. [" + e.Message + "]"); }
 
 			tmpCond.ImportFromMet(ref f); // <--- recurse
 
@@ -2851,12 +2863,12 @@ coding your metas (especially the very long VT function names).
 			// Try to get the next op, right after Not
 			Match match = rx.getLeadIn["AnyConditionOp"].Match(f.line[f.L].Substring(Math.Min(f.C, len)));
 			if (!match.Success)
-				throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo[this.typeid.ToString()]);
 
 			// Succeeded. Import it.
 			f.C = f.C + match.Groups["op"].Index + match.Groups["op"].Length;
 			try { this.condition = this._myRule.GetCondition(this._myRule.conditionStrToID[match.Groups["op"].Value], this.depth); } // do not increase depth
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Error. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Error. [" + e.Message + "]"); }
 			this.condition.ImportFromMetAF(ref f);
 
 			f.C = starting_fC;
@@ -2877,9 +2889,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			try { this._seconds = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2893,10 +2905,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._seconds = Int32.Parse(match.Groups["i"].Value); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2913,35 +2925,35 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("sid") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'sid'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'sid'.");
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			try { this._spellID = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("sec") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'sec'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'sec'.");
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			try { this._seconds = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -2968,13 +2980,13 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 			try
 			{
 				this._seconds = Int32.Parse(match.Groups["i"].Value);
 				this._spellID = Int32.Parse(match.Groups["i2"].Value);
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -2990,9 +3002,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			try { this._burden = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -3006,10 +3018,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._burden = Int32.Parse(match.Groups["i"].Value); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -3026,27 +3038,27 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("1") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 1.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 1.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("dist") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'dist'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'dist'.");
 			if (f.line[f.L++].CompareTo("d") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'd'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'd'.");
 			try { this._distance = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -3069,10 +3081,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._distance = Double.Parse(match.Groups["d"].Value); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -3098,28 +3110,28 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("1") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 1.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 1.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("e") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'e'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'e'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_expr = f.line[f.L++];
 			//try { this._expr = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -3142,10 +3154,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._a_expr = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); } // length is at least 2; remove delimiters
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -3192,37 +3204,37 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("p") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'p'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'p'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_regex = f.line[f.L++];
 			//try { this._regex = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("c") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'c'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'c'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_colorIDlist = f.line[f.L++];
 			//try { this._colorIDlist = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -3249,13 +3261,13 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 			try
 			{
 				this._a_regex = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
 				this._a_colorIDlist = match.Groups["s2"].Value.Substring(1, match.Groups["s2"].Value.Length - 2); // length is at least 2; remove delimiters
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -3284,10 +3296,10 @@ coding your metas (especially the very long VT function names).
 	{
 		public override ATypeID typeid { get { return ATypeID.Unassigned; } }
 		public AUnassigned(int d) : base(d) { }
-		override public void ImportFromMet(ref FileLines f) { throw new Exception("[LINE " + (f.L + 1).ToString() + "] AUnassigned.ImportFromMet: Should never get here."); }
-		override public void ExportToMet(ref FileLines f) { throw new Exception("[LINE " + (f.L + 1).ToString() + "] AUnassigned.ExportToMet: Should never get here."); }
-		override public void ImportFromMetAF(ref FileLines f) { throw new Exception("[LINE " + (f.L + 1).ToString() + "] AUnassigned.ImportFromMetAF: Should never get here."); }
-		override public void ExportToMetAF(ref FileLines f) { throw new Exception("[LINE " + (f.L + 1).ToString() + "] AUnassigned.ExportToMetAF: Should never get here."); }
+		override public void ImportFromMet(ref FileLines f) { throw new Exception("[LINE " + ((f.L+f.offset) + 1).ToString() + "] AUnassigned.ImportFromMet: Should never get here."); }
+		override public void ExportToMet(ref FileLines f) { throw new Exception("[LINE " + ((f.L+f.offset) + 1).ToString() + "] AUnassigned.ExportToMet: Should never get here."); }
+		override public void ImportFromMetAF(ref FileLines f) { throw new Exception("[LINE " + ((f.L+f.offset) + 1).ToString() + "] AUnassigned.ImportFromMetAF: Should never get here."); }
+		override public void ExportToMetAF(ref FileLines f) { throw new Exception("[LINE " + ((f.L+f.offset) + 1).ToString() + "] AUnassigned.ExportToMetAF: Should never get here."); }
 	}
 	class ANone : Action // line# for msgs good
 	{
@@ -3296,9 +3308,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -3312,7 +3324,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -3338,10 +3350,10 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_state = f.line[f.L++];
 			//try { this._state = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -3355,10 +3367,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._a_state = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); } // length is at least 2; remove delimiters
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -3384,10 +3396,10 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_chat = f.line[f.L++];
 			//try { this._chat = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -3401,10 +3413,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._a_chat = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); } // length is at least 2; remove delimiters
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -3426,28 +3438,28 @@ coding your metas (especially the very long VT function names).
 			ATypeID aID;
 			Action tmpAct;
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("K") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'K'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'K'.");
 			if (f.line[f.L++].CompareTo("V") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'V'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'V'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			try { this._count = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 			for (int i = 0; i < this._count; i++)
 			{
 				if (f.line[f.L++].CompareTo("i") != 0)
-					throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+					throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 				try { aID = (ATypeID)Int32.Parse(f.line[f.L++]); }
-				catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+				catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 
 				try { tmpAct = this._myRule.GetAction(aID, this.depth + 1); }
-				catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Error. [" + e.Message + "]"); }
+				catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Error. [" + e.Message + "]"); }
 
 				tmpAct.ImportFromMet(ref f); // <--- recurse
 				this.action.Add(tmpAct);
@@ -3480,7 +3492,7 @@ coding your metas (especially the very long VT function names).
 
 			// Is there something after the operation, even though there shouldn't be?
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo[this.typeid.ToString()]);
 
 			// It's a proper operation. Proceed. (This function only processes the operation keyords themselves, not any potential parameters they might have. It's the down-calls that do that part.)
 			while (true) // internal break-outs only
@@ -3506,36 +3518,38 @@ coding your metas (especially the very long VT function names).
 						f.C = 0;
 						return;
 					}
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. A Rule must be composed of an IF-DO pair. It cannot have a 'DO:' block immediately following another 'DO:' block.");
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. A Rule must be composed of an IF-DO pair. It cannot have a 'DO:' block immediately following another 'DO:' block.");
 				}
 
 				// It better be a valid Action op...
 				match = rx.getLeadIn["AnyActionOp"].Match(f.line[f.L]);
 				if (!match.Success)
 				{
+					if( f.C > f.line[f.L].Length ) // obscure one-off case of (extraneous) spaces preceding an IF:/etc. with nothing following...
+						throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo["Generic"]);
 					Match tmatch = rx.getLeadIn["GuessOpSwap"].Match(f.line[f.L].Substring(f.C)); // don't advance line
 					if (tmatch.Success)
-						throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected an Action operation. (Did you mix up 'All' and 'DoAll', or 'Expr' and 'DoExpr'?) " + rx.getInfo["Generic"]);
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected an Action operation. " + rx.getInfo["Generic"]);
+						throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected an Action operation. (Did you mix up 'All' and 'DoAll', or 'Expr' and 'DoExpr'?) " + rx.getInfo["Generic"]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected an Action operation. " + rx.getInfo["Generic"]);
 				}
 				// It is.
 
 				// How is it tabbed ?
 				int nTabs = match.Groups["tabs"].Length;
 				if (nTabs <= Rule.ActionContentTabLevel)
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Not tabbed-in enough to be inside an Action's All/Any operation. " + rx.getInfo[this.typeid.ToString()]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Not tabbed-in enough to be inside an Action's All/Any operation. " + rx.getInfo[this.typeid.ToString()]);
 				if (nTabs <= depth)
 				{   // return, since now done with this operation
 					f.C = nTabs;// Math.Max(nTabs - 1, 0);
 					return;
 				}
 				if (nTabs > depth + 1) // error
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Tabbed-in too far. " + rx.getInfo[this.typeid.ToString()]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Tabbed-in too far. " + rx.getInfo[this.typeid.ToString()]);
 
 				// Here: #tabs does equal depth+1; try to import this op.
 				Action tmpAct;
 				try { tmpAct = this._myRule.GetAction(this._myRule.actionStrToID[match.Groups["op"].Value], this.depth + 1); }
-				catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Error. [" + e.Message + "]"); }
+				catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Error. [" + e.Message + "]"); }
 				f.C = match.Groups["op"].Index + match.Groups["op"].Length;
 				tmpAct.ImportFromMetAF(ref f); // <--- recurse
 				this.action.Add(tmpAct);
@@ -3580,16 +3594,16 @@ coding your metas (especially the very long VT function names).
 
 			// ba = "byte array" ???
 			if (f.line[f.L++].CompareTo("ba") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'ba'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'ba'.");
 			try { this._exactCharCountToAfterMetNAV_InclCrLf = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 			// nav's in-game name
 			this._m_name = f.line[f.L++];
 			//try { this._name = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			// # nodes in this nav ???
 			try { nNodesInNav = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 
 			this._tag = this._myMeta.GenerateUniqueNavTag();
 			this._myMeta.AddToNavsUsed(this._tag, this);
@@ -3641,7 +3655,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 			try
 			{
 				this._tag = match.Groups["l"].Value;  // literals don't have delimiters
@@ -3667,7 +3681,7 @@ coding your metas (especially the very long VT function names).
 					}
 				}
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 			this._myMeta.AddNavCitationByAction(this._tag, this);
 		}
 		override public void ExportToMetAF(ref FileLines f)
@@ -3704,37 +3718,37 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("st") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'st'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'st'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_toState = f.line[f.L++];
 			//try { this._toState = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("ret") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'ret'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'ret'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_retState = f.line[f.L++];
 			//try { this._retState = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -3761,13 +3775,13 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 			try
 			{
 				this._a_toState = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2);  // length is at least 2; remove delimiters
 				this._a_retState = match.Groups["s2"].Value.Substring(1, match.Groups["s2"].Value.Length - 2); // length is at least 2; remove delimiters
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -3782,9 +3796,9 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'i'.");
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -3798,7 +3812,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -3823,28 +3837,28 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("1") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 1.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 1.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("e") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'e'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'e'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_expr = f.line[f.L++];
 			//try { this._expr = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -3867,10 +3881,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._a_expr = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); } // length is at least 2; remove delimiters
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -3898,28 +3912,28 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("1") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 1.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 1.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("e") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'e'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'e'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_chExpr = f.line[f.L++];
 			//try { this._chExpr = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -3942,10 +3956,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._a_chExpr = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); } // length is at least 2; remove delimiters
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -3974,44 +3988,44 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("3") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '3'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '3'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_state = f.line[f.L++];
 			//try { this._state = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("r") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'r'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'r'.");
 			if (f.line[f.L++].CompareTo("d") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'd'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'd'.");
 			try { this._range = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("t") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 't'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 't'.");
 			if (f.line[f.L++].CompareTo("d") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'd'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'd'.");
 			try { this._time = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -4042,14 +4056,14 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 			try
 			{
 				this._range = Double.Parse(match.Groups["d"].Value);
 				this._time = Double.Parse(match.Groups["d2"].Value);
 				this._a_state = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -4064,19 +4078,19 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -4095,7 +4109,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -4131,37 +4145,37 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("o") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'o'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'o'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_opt = f.line[f.L++];
 			//try { this._opt = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_var = f.line[f.L++];
 			//try { this._var = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -4188,13 +4202,13 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 			try
 			{
 				this._a_opt = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
 				this._a_var = match.Groups["s2"].Value.Substring(1, match.Groups["s2"].Value.Length - 2); // length is at least 2; remove delimiters
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -4230,37 +4244,37 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("o") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'o'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'o'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_opt = f.line[f.L++];
 			//try { this._opt = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_expr = f.line[f.L++];
 			//try { this._expr = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -4287,14 +4301,14 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try
 			{
 				this._a_opt = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
 				this._a_expr = match.Groups["s2"].Value.Substring(1, match.Groups["s2"].Value.Length - 2); // length is at least 2; remove delimiters
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -4334,37 +4348,37 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{ // [LINE 188] ACreateView.ImportFromMet: File format error. Expected 20.
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_vw = f.line[f.L++];
 			//try { this._vw = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("x") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'x'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'x'.");
 			if (f.line[f.L++].CompareTo("ba") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'ba'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'ba'.");
 			int tmp;
 			try { tmp = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 			if (tmp != f.line[f.L].Length - 1)
 			{
 				// SPECIAL ACCOMMODATION: Instead of directly throwing an error, accommodate multi-line XML. (Even though this should never happen, it has been seen in some files.)
@@ -4377,9 +4391,11 @@ coding your metas (especially the very long VT function names).
 						break;
 				}
 				if (tmp != sum - 1)
-					throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected line length of at least " + (f.line[f.L].Length - 1).ToString() + " characters.");
+					throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected line length of at least " + (f.line[f.L].Length - 1).ToString() + " characters.");
 
 				// Collapse the XML multi-lines into one XML line
+				if (nlines > 0)
+					f.offset += nlines-1; // account for collapsing lines so 'files lines' remain correct in error messages (remember split-off of 's' below)
 				while (nlines > 0)
 				{
 					f.line[f.L + nlines - 1] += f.line[f.L + nlines];
@@ -4398,7 +4414,7 @@ coding your metas (especially the very long VT function names).
 
 			this._m_xml = f.line[f.L++];
 			//try { this._xml = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + ".ImportFromMet: " + e.Message); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -4427,7 +4443,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 			try
 			{
 				this._a_vw = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
@@ -4440,7 +4456,7 @@ coding your metas (especially the very long VT function names).
 					if (System.IO.File.Exists(System.IO.Path.Join(f.path, fname))) // relative path ?
 						fname = System.IO.Path.Join(f.path, fname);
 					else if (!System.IO.File.Exists(fname)) // not absolute path either ?
-						throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: External file not found. (" + rx.getInfo[this.typeid.ToString()] + ")");
+						throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: External file not found. (" + rx.getInfo[this.typeid.ToString()] + ")");
 
 					string acc = "";
 					string tmpLine;
@@ -4453,13 +4469,13 @@ coding your metas (especially the very long VT function names).
 					//					string xmlREstr = @"^\" + rx.oD + @"[^\" + rx.oD + @"]|[^\" + rx.oD + @"]\" + rx.oD + @"[^\" + rx.oD + @"]|[^\" + rx.oD + @"]\" + rx.oD + @"$|^\" + rx.cD + @"[^\" + rx.cD + @"]|[^\" + rx.cD + @"]\" + rx.cD + @"[^\" + rx.cD + @"]|[^\" + rx.cD + @"]\" + rx.cD + @"$";
 					Match xmlStrMatch = (new Regex(@"^([^\" + rx.oD + @"\" + rx.cD + @"]|\" + rx.oD + @"\" + rx.oD + @"|\" + rx.cD + @"\" + rx.cD + @")*$", RegexOptions.Compiled)).Match(acc);
 					if (!xmlStrMatch.Success) // if not-doubled-up string delimiter found in XML file, throw exception
-						throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: External XML file still must conform to metaf string restrictions, with the exception of newline characters being allowed. Initial/terminal string delimiters, " + rx.oD + " and " + rx.cD + ", should be omitted, but all internal ones must be doubled-up. (" + rx.getInfo[this.typeid.ToString()] + ")");
+						throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: External XML file still must conform to metaf string restrictions, with the exception of newline characters being allowed. Initial/terminal string delimiters, " + rx.oD + " and " + rx.cD + ", should be omitted, but all internal ones must be doubled-up. (" + rx.getInfo[this.typeid.ToString()] + ")");
 
 					this._a_xml = acc;
 				}
 			}
 			catch (MyException e) { throw new MyException(e.Message); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -4485,28 +4501,28 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("1") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 1.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 1.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
 			this._m_vw = f.line[f.L++];
 			//try { this._vw = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -4529,10 +4545,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 
 			try { this._a_vw = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); } // length is at least 2; remove delimiters
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -4548,19 +4564,19 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			if (f.line[f.L++].CompareTo("TABLE") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'TABLE'.");
 			if (f.line[f.L++].CompareTo("2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 2.");
 			if (f.line[f.L++].CompareTo("k") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'k'.");
 			if (f.line[f.L++].CompareTo("v") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'v'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("n") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 0.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -4579,7 +4595,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[this.typeid.ToString()].Match(thisLN);
 			//Match match = rx.getParms[this.typeid.ToString()].Match( f.line[f.L++].Substring(Math.Min(f.C, len)) );
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[this.typeid.ToString()]);
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -4605,10 +4621,10 @@ coding your metas (especially the very long VT function names).
 	{
 		public NUnassigned(Nav myNav) : base() { throw new Exception(this.GetType().Name.ToString() + ".NUnassigned: Should never get here."); }
 		public override NTypeID typeid { get { return NTypeID.Unassigned; } }
-		override public void ImportFromMet(ref FileLines f) { throw new Exception("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Should never get here."); }
-		override public void ExportToMet(ref FileLines f) { throw new Exception("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ExportToMet: Should never get here."); }
-		override public void ImportFromMetAF(ref FileLines f) { throw new Exception("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Should never get here."); }
-		override public void ExportToMetAF(ref FileLines f) { throw new Exception("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ExportToMetAF: Should never get here."); }
+		override public void ImportFromMet(ref FileLines f) { throw new Exception("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Should never get here."); }
+		override public void ExportToMet(ref FileLines f) { throw new Exception("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ExportToMet: Should never get here."); }
+		override public void ImportFromMetAF(ref FileLines f) { throw new Exception("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Should never get here."); }
+		override public void ExportToMetAF(ref FileLines f) { throw new Exception("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ExportToMetAF: Should never get here."); }
 	}
 
 	// Weird one-off case... kind've a pseudo-node, really; the only one with no xyz (for obvious reasons)
@@ -4633,9 +4649,9 @@ coding your metas (especially the very long VT function names).
 		{
 			this._m_tgtName = f.line[f.L++];
 			//try { this._tgtName = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			try { this._tgtGuid = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -4650,13 +4666,13 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(thisLN);
 			//Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(f.line[f.L].Substring(Math.Min(f.C, f.line[f.L++].Length-1)));
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
 			try
 			{
 				this._tgtGuid = Int32.Parse(match.Groups["h"].Value, System.Globalization.NumberStyles.HexNumber);
 				this._a_tgtName = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -4678,13 +4694,13 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			try { this._x = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._y = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._z = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -4702,13 +4718,13 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(thisLN);
 			//Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(f.line[f.L].Substring(Math.Min(f.C, f.line[f.L++].Length-1)));
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
 			try {
 				this._x = Double.Parse(match.Groups["d"].Value);
 				this._y = Double.Parse(match.Groups["d2"].Value);
 				this._z = Double.Parse(match.Groups["d3"].Value);
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -4731,15 +4747,15 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			try { this._x = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._y = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._z = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
 			try { this._guid = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -4758,7 +4774,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(thisLN);
 			//Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(f.line[f.L].Substring(Math.Min(f.C, f.line[f.L++].Length-1)));
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
 			try
 			{
 				this._x = Double.Parse(match.Groups["d"].Value);
@@ -4766,7 +4782,7 @@ coding your metas (especially the very long VT function names).
 				this._z = Double.Parse(match.Groups["d3"].Value);
 				this._guid = Int32.Parse(match.Groups["h"].Value, System.Globalization.NumberStyles.HexNumber);
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -4851,17 +4867,17 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			try { this._x = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._y = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._z = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
 			try { this._spellID = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 			if (!this._recallSpells.ContainsKey(this._spellID))
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Invalid Spell ID.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Invalid Spell ID.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -4880,7 +4896,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(thisLN);
 			//Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(f.line[f.L].Substring(Math.Min(f.C, f.line[f.L++].Length-1)));
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
 			try
 			{
 				this._x = Double.Parse(match.Groups["d"].Value);
@@ -4891,7 +4907,7 @@ coding your metas (especially the very long VT function names).
 					throw new MyException("Unrecognized recall spell name.");
 				this._spellID = this.spellStrToID[tmpStr];
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + "\n[" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + "\n[" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -4913,15 +4929,15 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			try { this._x = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._y = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._z = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
 			try { this._pause = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -4940,7 +4956,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(thisLN);
 			//Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(f.line[f.L].Substring(Math.Min(f.C, f.line[f.L++].Length-1)));
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
 			try
 			{
 				this._x = Double.Parse(match.Groups["d"].Value);
@@ -4948,7 +4964,7 @@ coding your metas (especially the very long VT function names).
 				this._z = Double.Parse(match.Groups["d3"].Value);
 				this._pause = Double.Parse(match.Groups["d4"].Value);
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -4982,16 +4998,16 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			try { this._x = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._y = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._z = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
 			this._m_chat = f.line[f.L++];
 			//try { this._chat = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -5010,7 +5026,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(thisLN);
 			//Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(f.line[f.L].Substring(Math.Min(f.C, f.line[f.L++].Length-1)));
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
 			try
 			{
 				this._x = Double.Parse(match.Groups["d"].Value);
@@ -5018,7 +5034,7 @@ coding your metas (especially the very long VT function names).
 				this._z = Double.Parse(match.Groups["d3"].Value);
 				this._a_chat = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -5055,18 +5071,18 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			try { this._x = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._y = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._z = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
 			try { this._guid = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 			this._m_vendorName = f.line[f.L++];
 			//try { this._vendorName = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -5086,7 +5102,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(thisLN);
 			//Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(f.line[f.L].Substring(Math.Min(f.C, f.line[f.L++].Length-1)));
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
 
 			try
 			{
@@ -5096,7 +5112,7 @@ coding your metas (especially the very long VT function names).
 				this._guid = Int32.Parse(match.Groups["h"].Value, System.Globalization.NumberStyles.HexNumber);
 				this._a_vendorName = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -5136,30 +5152,30 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			try { this._myx = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._myy = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._myz = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
 
 			this._m_objName = f.line[f.L++];
 			//try { this._objName = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			try { this._objClass = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			if (this._objClass != 14 && this._objClass != 37 && this._objClass != 10) // object IDs: portal=14, npc=37, container=10 ("Dangerous Portal Device")
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Invalid Object Class.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Invalid Object Class.");
 			if (f.line[f.L++].CompareTo("True") != 0) // always "True" ???
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'True'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'True'.");
 
 			try { this._objx = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._objy = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._objz = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -5184,7 +5200,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(thisLN);
 			//Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(f.line[f.L].Substring(Math.Min(f.C, f.line[f.L++].Length-1)));
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
 			try
 			{
 				this._myx = Double.Parse(match.Groups["d"].Value);
@@ -5198,7 +5214,7 @@ coding your metas (especially the very long VT function names).
 					throw new MyException("Object Class typically must be 14 (portal) or 37 (npc).");
 				this._a_objName = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -5239,30 +5255,30 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			try { this._myx = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._myy = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._myz = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
 
 			this._m_objName = f.line[f.L++];
 			//try { this._objName = f.line[f.L++]; }
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			try { this._objClass = Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			if (this._objClass != 37)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Invalid Object Class.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Invalid Object Class.");
 			if (f.line[f.L++].CompareTo("True") != 0) // always "True" ???
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'True'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'True'.");
 
 			try { this._objx = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._objy = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._objz = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -5287,7 +5303,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(thisLN);
 			//Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(f.line[f.L].Substring(Math.Min(f.C, f.line[f.L++].Length-1)));
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
 			try
 			{
 				this._myx = Double.Parse(match.Groups["d"].Value);
@@ -5301,7 +5317,7 @@ coding your metas (especially the very long VT function names).
 					throw new MyException("Object Class must be 37 (npc).");
 				this._a_objName = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -5325,13 +5341,13 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			try { this._x = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._y = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._z = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -5349,14 +5365,14 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(thisLN);
 			//Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(f.line[f.L].Substring(Math.Min(f.C, f.line[f.L++].Length-1)));
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
 			try
 			{
 				this._x = Double.Parse(match.Groups["d"].Value);
 				this._y = Double.Parse(match.Groups["d2"].Value);
 				this._z = Double.Parse(match.Groups["d3"].Value);
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -5390,20 +5406,20 @@ coding your metas (especially the very long VT function names).
 		override public void ImportFromMet(ref FileLines f) // line# for msgs good
 		{
 			try { this._x = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._y = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			try { this._z = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			if (f.line[f.L++].CompareTo("0") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected '0'.");
 			try { this._headingDeg = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 			this._m_doHoldShift = f.line[f.L++];
 			//try { this._doHoldShift = f.line[f.L++]; } // should ALWAYS be either 'True' or 'False'
-			//catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
+			//catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
 			try { this._delayMS = Double.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected a 'double'. [" + e.Message + "]"); }
 		}
 		override public void ExportToMet(ref FileLines f)
 		{
@@ -5424,7 +5440,7 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(thisLN);
 			//Match match = rx.getParms[((M_NTypeID)this.typeid).ToString()].Match(f.line[f.L].Substring(Math.Min(f.C, f.line[f.L++].Length-1)));
 			if (!match.Success)
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()]);
 			try
 			{
 				this._x = Double.Parse(match.Groups["d"].Value);
@@ -5436,7 +5452,7 @@ coding your metas (especially the very long VT function names).
 					throw new MyException("'Hold shift' must be " + rx.oD + "True" + rx.cD + " or " + rx.oD + "False" + rx.cD + ".");
 				this._delayMS = Double.Parse(match.Groups["d5"].Value);
 			}
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[((M_NTypeID)this.typeid).ToString()] + " [" + e.Message + "]"); }
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
@@ -5525,11 +5541,11 @@ coding your metas (especially the very long VT function names).
 
 			// "uTank" version specifier
 			if (f.line[f.L++].CompareTo("uTank2 NAV 1.2") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] Nav.ImportFromMet: File format error. Expected 'uTank2 NAV 1.2'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] Nav.ImportFromMet: File format error. Expected 'uTank2 NAV 1.2'.");
 
 			// type of nav: Circular(1), Linear(2), Follow(3), or Once(4)
 			try { this._type = (NavTypeID)Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] Nav.ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] Nav.ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 
 			// If it's a "follow" nav, we're basically done already
 			if (this._type == NavTypeID.Follow)
@@ -5542,7 +5558,7 @@ coding your metas (especially the very long VT function names).
 			{
 				// #nodes in nav again???
 				try { this._nodesInMetNav = Int32.Parse(f.line[f.L++]); }
-				catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] Nav.ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+				catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] Nav.ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 
 				for (int i = 0; i < this._nodesInMetNav; i++)
 				{
@@ -5551,7 +5567,7 @@ coding your metas (especially the very long VT function names).
 						nID = (NTypeID)Int32.Parse(f.line[f.L++]);
 						tmp = GetNode(nID, ref f); // can also throw (if integer isn't in correct set; although, the typecast above probably would do that, anyway)
 					}
-					catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] Nav.ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
+					catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] Nav.ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 					tmp.ImportFromMet(ref f);
 					this._node.Add(tmp);
 				}
@@ -5583,10 +5599,10 @@ coding your metas (especially the very long VT function names).
 			Match match = rx.getParms["NAV:"].Match(thisLN);
 			//match = rx.getParms["NAV:"].Match(f.line[f.L++].Substring(f.C)); // advance line
 			if( !match.Success )
-				throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo["NAV:"]);
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo["NAV:"]);
 
 			try { this.tag = match.Groups["l"].Value; }
-			catch(Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + e.Message); }
+			catch(Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: " + e.Message); }
 
 			this._type = this.navTypeStrToID[match.Groups["l2"].Value];
 
@@ -5602,7 +5618,7 @@ coding your metas (especially the very long VT function names).
 						|| (!(match = rx.getLeadIn["AnyNavNodeType"].Match(f.line[f.L])).Success)   // apply regex, assign to match (don't advance line) --> short-circuit to true if !Success
 						|| (match.Groups["type"].Value.CompareTo("flw") != 0)                       // check if it's the right node type --> short-circuit to true if no
 					)
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] Nav.ImportFromMetAF: Every 'follow' nav requires exactly one 'flw' nav node.");
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] Nav.ImportFromMetAF: Every 'follow' nav requires exactly one 'flw' nav node.");
 
 				NavNode tmpNode = new NFollow(this);
 				tmpNode.ImportFromMetAF(ref f);
@@ -5626,22 +5642,22 @@ coding your metas (especially the very long VT function names).
 					{
 						if( match.Groups["type"].Value.CompareTo("NAV:") == 0)
 							break;
-						throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. 'STATE:', 'IF:', and 'DO:' lines must all be above the first 'NAV:' line. " + rx.getInfo["NAV:"]);
+						throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. 'STATE:', 'IF:', and 'DO:' lines must all be above the first 'NAV:' line. " + rx.getInfo["NAV:"]);
 					}
 
 					// Get the node type
 					match = rx.getLeadIn["AnyNavNodeType"].Match(f.line[f.L]); // don't advance line
 					if ( ! match.Success )
-						throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Unknown nav node type. " + rx.getInfo["NAV:"]);
+						throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Unknown nav node type. " + rx.getInfo["NAV:"]);
 
 					// Make sure the node isn't a 'flw' node
 					if ( !nodeTypeStrToID.ContainsKey(match.Groups["type"].Value)) // nodeTypeStrToID doesn't contain 'flw'
-						throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Only 'follow' navs can contain 'flw' nodes. " + rx.getInfo["NAV:"]);
+						throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Only 'follow' navs can contain 'flw' nodes. " + rx.getInfo["NAV:"]);
 
 					// Call down to import
 					NavNode tmpNode;
 					try { tmpNode = this.GetNode(nodeTypeStrToID[match.Groups["type"].Value], ref f); }
-					catch (Exception e) { throw new MyException("[LINE " + (f.L + 1).ToString() + "] File format error. Expected a valid nav node type. [" + e.Message + "]"); }
+					catch (Exception e) { throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] File format error. Expected a valid nav node type. [" + e.Message + "]"); }
 					f.C = 4;// Math.Min(4,f.line[f.L].Length);
 					tmpNode.ImportFromMetAF(ref f); // advances line inside
 					this._node.Add(tmpNode);
@@ -5813,21 +5829,21 @@ coding your metas (especially the very long VT function names).
 
 			// Read the condition type, and set-up the data structure for reading the data in a moment
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] File format error. Expected 'i'.");
 			try { cID = (CTypeID) Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] File format error. Expected an integer. [" + e.Message + "]"); }
 			
 			try { this._condition = this.GetCondition(cID, Rule.ConditionContentTabLevel); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Error. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Error. [" + e.Message + "]"); }
 
 			// Read the action type, and set-up the data structure for reading the data in a moment
 			if (f.line[f.L++].CompareTo("i") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] File format error. Expected 'i'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] File format error. Expected 'i'.");
 			try { aID = (ATypeID) Int32.Parse(f.line[f.L++]); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] File format error. Expected an integer. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] File format error. Expected an integer. [" + e.Message + "]"); }
 
 			try { this._action = this.GetAction(aID, Rule.ActionContentTabLevel); }
-			catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Error. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: Error. [" + e.Message + "]"); }
 
 			// Read the condition data
 			this._condition.ImportFromMet(ref f);
@@ -5837,7 +5853,7 @@ coding your metas (especially the very long VT function names).
 
 			// Read and return the state name
 			if (f.line[f.L++].CompareTo("s") != 0)
-				throw new MyException("[LINE " + f.L.ToString() + "] File format error. Expected 's'.");
+				throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] File format error. Expected 's'.");
 
 			return f.line[f.L++]; // no need to check it for single internal string delimiters because it's checked for that upon return ///////////////////////
 		}
@@ -5867,7 +5883,7 @@ coding your metas (especially the very long VT function names).
 
 			// Prematurely hit end of file
 			if (f.L >= f.line.Count)
-				throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Hit end-of-file but needed a Condition ('IF:' line).");
+				throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Hit end-of-file but needed a Condition ('IF:' line).");
 
 			// Found first non-"blank" line... "IF:" ?
 			match = rx.getLeadIn["StateIfDoNav"].Match(f.line[f.L]); // don't advance line
@@ -5875,7 +5891,7 @@ coding your metas (especially the very long VT function names).
 				|| match.Groups["type"].Value.CompareTo("IF:") != 0
 				|| match.Groups["tabs"].Value.Length != Rule.ConditionContentTabLevel-1
 				)
-				throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected Condition ('IF:' line). " + rx.getInfo["IF:"]);
+				throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected Condition ('IF:' line). " + rx.getInfo["IF:"]);
 			f.C = match.Groups["tabs"].Value.Length + match.Groups["type"].Value.Length;
 
 			// Try to grab the Condition keyword
@@ -5884,13 +5900,13 @@ coding your metas (especially the very long VT function names).
 			{
 				Match tmatch = rx.getLeadIn["GuessOpSwap"].Match(f.line[f.L].Substring(f.C)); // don't advance line
 				if( tmatch.Success )
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected a Condition operation following the 'IF:'. (Did you mix up 'All' and 'DoAll', or 'Expr' and 'DoExpr'?) " + rx.getInfo["IF:"]);
-				throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected a Condition operation following the 'IF:'. " + rx.getInfo["IF:"]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected a Condition operation following the 'IF:'. (Did you mix up 'All' and 'DoAll', or 'Expr' and 'DoExpr'?) " + rx.getInfo["IF:"]);
+				throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected a Condition operation following the 'IF:'. " + rx.getInfo["IF:"]);
 			}
 
 			// Try to import this Condition
 			try { this._condition = GetCondition(this.conditionStrToID[match.Groups["op"].Value], Rule.ConditionContentTabLevel); }
-			catch (Exception e) { throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Error. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Error. [" + e.Message + "]"); }
 			f.C += match.Groups["op"].Captures[0].Index + match.Groups["op"].Value.Length;//, f.line[f.L].Length-1);
 			this._condition.ImportFromMetAF(ref f); // advances line inside
 
@@ -5904,7 +5920,7 @@ coding your metas (especially the very long VT function names).
 
 			// Prematurely hit end of file
 			if (f.L >= f.line.Count)
-				throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Hit end-of-file but needed a Rule Action ('DO:' line).");
+				throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Hit end-of-file but needed a Rule Action ('DO:' line).");
 
 			// Found first non-"blank" line... "DO:" ?
 			match = rx.getLeadIn["StateIfDoNav"].Match(f.line[f.L]); // don't advance line
@@ -5912,7 +5928,7 @@ coding your metas (especially the very long VT function names).
 				|| match.Groups["type"].Value.CompareTo("DO:") != 0
 				|| match.Groups["tabs"].Value.Length != Rule.ActionContentTabLevel - 1
 				)
-				throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected Action ('DO:' line). " + rx.getInfo["DO:"]);
+				throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected Action ('DO:' line). " + rx.getInfo["DO:"]);
 			f.C = match.Groups["tabs"].Value.Length + match.Groups["type"].Value.Length;
 
 			// Try to grab the Action keyword
@@ -5921,13 +5937,13 @@ coding your metas (especially the very long VT function names).
 			{
 				Match tmatch = rx.getLeadIn["GuessOpSwap"].Match(f.line[f.L].Substring(f.C)); // don't advance line
 				if (tmatch.Success)
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected an Action operation following the 'DO:'. (Did you mix up 'All' and 'DoAll', or 'Expr' and 'DoExpr'?) " + rx.getInfo["DO:"]);
-				throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected an Action operation following the 'DO:'. " + rx.getInfo["DO:"]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected an Action operation following the 'DO:'. (Did you mix up 'All' and 'DoAll', or 'Expr' and 'DoExpr'?) " + rx.getInfo["DO:"]);
+				throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected an Action operation following the 'DO:'. " + rx.getInfo["DO:"]);
 			}
 
 			// Try to import this Action
 			try { this._action = GetAction(this.actionStrToID[match.Groups["op"].Value], Rule.ActionContentTabLevel); }
-			catch (Exception e) { throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Error. [" + e.Message + "]"); }
+			catch (Exception e) { throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Error. [" + e.Message + "]"); }
 
 			f.C += match.Groups["op"].Captures[0].Index + match.Groups["op"].Value.Length;//=Math.Min(f.C+..., f.line[f.L].Length-1);
 			this._action.ImportFromMetAF(ref f); // advances line inside
@@ -6001,13 +6017,13 @@ coding your metas (especially the very long VT function names).
 				// Found first non-"blank" line... done reading Rules for this state ?  ("STATE:" or "NAV:" line ?)
 				match = rx.getLeadIn["StateIfDoNav"].Match(f.line[f.L]); // don't advance line
 				if (!match.Success)
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected 'STATE:', 'IF:', or 'NAV:' line. " + rx.getInfo["STATE:"]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected 'STATE:', 'IF:', or 'NAV:' line. " + rx.getInfo["STATE:"]);
 				if (match.Groups["type"].Value.CompareTo("STATE:") == 0 || match.Groups["type"].Value.CompareTo("NAV:") == 0)
 					break;
 
 				// Start of a new Rule ? ("IF:" line ?)
 				if (match.Groups["type"].Value.CompareTo("IF:") != 0) // i.e., it must be a "DO:" line if !="IF:" since it matched StateIfDoNav, and State & Nav were already checked above
-						throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected 'STATE:', 'IF:', or 'NAV:' line. (Missing Condition for this Action?) " + rx.getInfo["STATE:"]);
+						throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected 'STATE:', 'IF:', or 'NAV:' line. (Missing Condition for this Action?) " + rx.getInfo["STATE:"]);
 
 				// It's an "IF:" line; try to import this Rule
 				f.C = 0;
@@ -6096,11 +6112,11 @@ coding your metas (especially the very long VT function names).
 				// Intro lines
 				foreach (string s in Meta._firstLines)
 					if (s.CompareTo(f.line[f.L++]) != 0)
-						throw new MyException("[LINE " + f.L.ToString() + "] Unknown file type: First lines do not match expected format.");
+						throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] Unknown file type: First lines do not match expected format.");
 
 				// Number of rules in file
 				try { Rule.Count = UInt32.Parse(f.line[f.L++]); }
-				catch (Exception e) { throw new MyException("[LINE " + f.L.ToString() + "] Expected number of rules saved in file but didn't find that. [" + e.Message + "]"); }
+				catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] Expected number of rules saved in file but didn't find that. [" + e.Message + "]"); }
 
 
 				// Read all the rules, including embedded navs
@@ -6128,7 +6144,7 @@ coding your metas (especially the very long VT function names).
 			else
 			{
 				if ("uTank2 NAV 1.2".CompareTo(f.line[f.L]) != 0)
-					throw new MyException("[LINE " + (f.L+1).ToString() + "] Unknown file type: First lines do not match expected format.");
+					throw new MyException("[LINE " + ((f.L+f.offset)+1).ToString() + "] Unknown file type: First lines do not match expected format.");
 				Nav n = new Nav(this);
 				n.ImportFromMet(ref f);
 			}
@@ -6217,13 +6233,13 @@ coding your metas (especially the very long VT function names).
 					// Found first non-"blank" line... done reading States for this meta ? ("NAV:" line ?)
 					match = rx.getLeadIn["StateIfDoNav"].Match(f.line[f.L]); // don't advance line
 					if (!match.Success)
-						throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo["STATE:"]);
+						throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo["STATE:"]);
 					if (match.Groups["type"].Value.CompareTo("NAV:") == 0)
 						break;
 
 					// Start of new State ? ("STATE:" line ?)
 					if (match.Groups["type"].Value.CompareTo("STATE:") != 0)
-						throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo["STATE:"]);
+						throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo["STATE:"]);
 
 					// Try to import this State
 					f.C = 6; // Math.Min(6, f.line[f.L].Length - 1);
@@ -6232,13 +6248,13 @@ coding your metas (especially the very long VT function names).
 					//f.C = Math.Min(6, f.line[f.L].Length - 1);
 					//match = rx.getParms["STATE:"].Match(f.line[f.L].Substring(f.C)); // don't advance line
 					if (!match.Success)
-						throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. (Did you put a space between the colon and state name?) " + rx.getInfo["STATE:"]);
+						throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. (Did you put a space between the colon and state name?) " + rx.getInfo["STATE:"]);
 
 					// Double check that this state name does not already exist
 					string tmpStr = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // remove string delimiters from ends
 					foreach (State st in this._state)
 						if (st.name.CompareTo(tmpStr) == 0)
-							throw new MyException("[LINE " + (f.L + 1).ToString() + "] Meta.ImportFromMetAF: State names must be unique; the state name " + rx.oD + tmpStr + rx.cD + " is already in use.");
+							throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] Meta.ImportFromMetAF: State names must be unique; the state name " + rx.oD + tmpStr + rx.cD + " is already in use.");
 
 					// Import this state's contents, and add it to the state list
 					State tmpState = new State(tmpStr, this, false); // tempStr is an "AF string"
@@ -6249,9 +6265,9 @@ coding your metas (especially the very long VT function names).
 				}
 				if (this._state.Count == 0)
 				{
-					Console.WriteLine("[LINE " + (f.L + 1).ToString() + "] Meta.ImportFromMetAF: WARNING: You defined no meta states. Handling as a nav-only file.");
+					Console.WriteLine("[LINE " + ((f.L+f.offset) + 1).ToString() + "] Meta.ImportFromMetAF: WARNING: You defined no meta states. Handling as a nav-only file.");
 					this._navOnly = true;
-					//	throw new MyException("[LINE " + f.L.ToString() + "] Meta.ImportFromMetAF: You must define at least one state!");
+					//	throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] Meta.ImportFromMetAF: You must define at least one state!");
 				}
 			}
 
@@ -6273,7 +6289,7 @@ coding your metas (especially the very long VT function names).
 				// Found first non-"blank" line... does it start with "NAV:" ? (It needs to.)
 				match = rx.getLeadIn["StateIfDoNav"].Match(f.line[f.L]); // don't advance line
 				if (!match.Success || match.Groups["type"].Value.CompareTo("NAV:") != 0)
-					throw new MyException("[LINE " + (f.L + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo["NAV:"]);
+					throw new MyException("[LINE " + ((f.L+f.offset) + 1).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo["NAV:"]);
 
 				// Import this nav's contents
 				Nav tmpNav = new Nav(this);
