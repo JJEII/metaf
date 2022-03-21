@@ -1,0 +1,31 @@
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF Editor.exe
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF Editor.deps.json
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF Editor.runtimeconfig.json
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF Editor.runtimeconfig.dev.json
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF Editor.dll
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF Editor.pdb
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor.csproj.AssemblyReference.cache
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MainWindow.g.cs
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\App.g.cs
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor_MarkupCompile.cache
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor_MarkupCompile.lref
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MainWindow.baml
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor.g.resources
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor.AssemblyInfoInputs.cache
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor.AssemblyInfo.cs
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor.csproj.CoreCompileInputs.cache
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor.dll
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\refint\MetAF Editor.dll
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor.pdb
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor.genruntimeconfig.cache
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\ref\MetAF Editor.dll
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetaAF CLI.deps.json
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetaAF CLI.runtimeconfig.json
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetaAF CLI.runtimeconfig.dev.json
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetaAF CLI.exe
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetaAF CLI.dll
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF lib.dll
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetaAF CLI.pdb
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF lib.pdb
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor.csproj.CopyComplete
