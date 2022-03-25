@@ -157,8 +157,8 @@ namespace MetaAF_CLI
                 Meta m = LoadMeta(inFileName);
 
 #if (!_DBG_)
-                try
-                {
+                //try
+                //{
 #endif
                     string outFileName;
                     string ext = ".met";
@@ -206,12 +206,12 @@ namespace MetaAF_CLI
 
                     SaveMeta(m, outFileName);
 #if (!_DBG_)
-                }
+               /* }
                 catch (Exception e)
                 {
                     Console.WriteLine(e.Message + "\nPress ENTER.");
                     Console.ReadLine();
-                }
+                }*/
 #endif
             }
             else // no command-line arguments

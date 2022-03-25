@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Xml;
 using MetAF.enums;
 
 namespace MetAF
@@ -1048,28 +1049,33 @@ namespace MetAF
     {
         // For whatever reason, the XML field of the CreateView action fails to include a newline between it and whatever immediately follows it.
         public static List<int> breakitFixIndices = new List<int>();
-        private string _s_vw, _s_xml;
+        private string _s_viewName, _s_view_xml,_s_viewKey;
+        private Meta _meta;
         public override ATypeID typeid { get { return ATypeID.CreateView; } }
-        public ACreateView(int d) : base(d) { _s_vw = _s_xml = ""; }
-        private string _m_vw
+        public ACreateView(int d, Meta m) : base(d) 
         {
-            set { _s_vw = rx.m_SetStr(value); }
-            get { return rx.m_GetStr(_s_vw); }
+            _s_viewName = _s_view_xml = _s_viewKey = ""; 
+            _meta = m;
         }
-        private string _a_vw
+        private string _m_viewName
         {
-            set { _s_vw = rx.a_SetStr(value); }
-            get { return rx.a_GetStr(_s_vw); }
+            set { _s_viewName = rx.m_SetStr(value); }
+            get { return rx.m_GetStr(_s_viewName); }
         }
-        private string _m_xml
+        private string _a_viewName
         {
-            set { _s_xml = rx.m_SetStr(value); }
-            get { return rx.m_GetStr(_s_xml); }
+            set { _s_viewName = rx.a_SetStr(value); }
+            get { return rx.a_GetStr(_s_viewName); }
         }
-        private string _a_xml
+        private string _m_view_xml
         {
-            set { _s_xml = rx.a_SetStr(value); }
-            get { return rx.a_GetStr(_s_xml); }
+            set { _s_view_xml = rx.m_SetStr(value); }
+            get { return rx.m_GetStr(_s_view_xml); }
+        }
+        private string _a_view_xml
+        {
+            set { _s_view_xml = rx.a_SetStr(value); }
+            get { return rx.a_GetStr(_s_view_xml); }
         }
         override public void ImportFromMet(ref FileLines f) // line# for msgs good
         { // [LINE 188] ACreateView.ImportFromMet: File format error. Expected 20.
@@ -1093,7 +1099,7 @@ namespace MetAF
                 throw new MyException("[LINE " + (f.L + f.offset).ToString() + "] " + GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 'n'.");
             if (f.line[f.L++].CompareTo("s") != 0)
                 throw new MyException("[LINE " + (f.L + f.offset).ToString() + "] " + GetType().Name.ToString() + ".ImportFromMet: File format error. Expected 's'.");
-            _m_vw = f.line[f.L++];
+            _m_viewName = f.line[f.L++];
             //try { this._vw = f.line[f.L++]; }
             //catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + e.Message); }
             if (f.line[f.L++].CompareTo("s") != 0)
@@ -1138,9 +1144,44 @@ namespace MetAF
             f.line[r] = f.line[f.L].Substring(Math.Max(f.line[f.L].Length - 1, 0), 1); // chop apart the XML line ...
             f.line[f.L] = f.line[f.L].Substring(0, f.line[f.L].Length - 1);            // ... since it has more on it than it should
 
-            _m_xml = f.line[f.L++];
+            _m_view_xml = f.line[f.L++];
             //try { this._xml = f.line[f.L++]; }
             //catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + ".ImportFromMet: " + e.Message); }
+
+            
+
+            //Parse xml string and create view data structure
+
+#if (!_DBG_)
+            //try
+#endif
+            {
+                XmlDocument xmlDoc = new XmlDocument();
+                xmlDoc.LoadXml(_m_view_xml);
+
+                XmlElement viewNode = (XmlElement)xmlDoc.GetElementsByTagName("view")[0];
+                var metaView = new MetaView(_meta);
+                if(metaView.formId != null && metaView.formId.Length > 0)
+                { // id embeded in xml
+                    _s_viewKey = metaView.formId;
+                } else
+                { // no id, make one
+                    metaView.formId = _s_viewKey = _meta.GenerateUniqueViewTag();
+                }
+                metaView.ImportFromMet(ref f, viewNode);
+            }
+#if (!_DBG_)
+           /*catch (Exception ex)
+            {
+                throw new MyException("[LINE " + (f.L + f.offset).ToString() + "] " + GetType().Name.ToString() + ".ImportFromMetAF: Invlaid XML " + _m_view_xml);
+            }*/
+#endif
+
+
+
+
+
+
         }
         override public void ExportToMet(ref FileLines f)
         {
@@ -1154,12 +1195,12 @@ namespace MetAF
             f.line.Add("s");
             f.line.Add("n"); //"o"
             f.line.Add("s");
-            f.line.Add(_m_vw);
+            f.line.Add(_m_viewName);
             f.line.Add("s");
             f.line.Add("x"); // "v"
             f.line.Add("ba"); // "s"
-            f.line.Add(_m_xml.Length.ToString()); // nothing??
-            f.line.Add(_m_xml);
+            f.line.Add(_m_view_xml.Length.ToString()); // nothing??
+            f.line.Add(_m_view_xml);
             breakitFixIndices.Add(f.line.Count - 1); // For dealing with the CreateView "bug"
         }
         override public void ImportFromMetAF(ref FileLines f) // line# for msgs good
@@ -1172,13 +1213,13 @@ namespace MetAF
                 throw new MyException("[LINE " + (f.L + f.offset).ToString() + "] " + GetType().Name.ToString() + ".ImportFromMetAF: " + rx.getInfo[typeid.ToString()]);
             try
             {
-                _a_vw = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
-                _a_xml = match.Groups["s2"].Value.Substring(1, match.Groups["s2"].Value.Length - 2); // length is at least 2; remove delimiters
+                _a_viewName = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
+                _a_view_xml = match.Groups["s2"].Value.Substring(1, match.Groups["s2"].Value.Length - 2); // length is at least 2; remove delimiters
 
                 // check if external XML file...
-                if (_a_xml.Length > 0 && _a_xml[0] == ':')
+                if (_a_view_xml.Length > 0 && _a_view_xml[0] == ':')
                 {
-                    string fname = _m_xml.Substring(1).Trim();
+                    string fname = _m_view_xml.Substring(1).Trim();
                     if (System.IO.File.Exists(System.IO.Path.Join(f.path, fname))) // relative path ?
                         fname = System.IO.Path.Join(f.path, fname);
                     else if (!System.IO.File.Exists(fname)) // not absolute path either ?
@@ -1197,7 +1238,7 @@ namespace MetAF
                     if (!xmlStrMatch.Success) // if not-doubled-up string delimiter found in XML file, throw exception
                         throw new MyException("[LINE " + (f.L + f.offset).ToString() + "] " + GetType().Name.ToString() + ".ImportFromMetAF: External XML file still must conform to metaf string restrictions, with the exception of newline characters being allowed. Initial/terminal string delimiters, " + rx.oD + " and " + rx.cD + ", should be omitted, but all internal ones must be doubled-up. (" + rx.getInfo[typeid.ToString()] + ")");
 
-                    _a_xml = acc;
+                    _a_view_xml = acc;
                 }
             }
             catch (MyException e) { throw new MyException(e.Message); }
@@ -1205,7 +1246,8 @@ namespace MetAF
         }
         override public void ExportToMetAF(ref FileLines f)
         {
-            f.line.Add(new string('\t', depth) + typeid.ToString() + " " + rx.oD + _a_vw + rx.cD + " " + rx.oD + _a_xml + rx.cD);
+            //f.line.Add(new string('\t', depth) + typeid.ToString() + " " + rx.oD + _a_viewName + rx.cD + " " + rx.oD + _a_view_xml + rx.cD);
+            f.line.Add(new string('\t', depth) + typeid.ToString() + " " + rx.oD + _a_viewName + rx.cD + " " + rx.oD + _s_viewKey + rx.cD);
         }
     }
 

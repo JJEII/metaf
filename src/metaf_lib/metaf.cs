@@ -438,7 +438,7 @@ namespace MetAF
                 case ATypeID.ClearWatchdog: return new AClearWatchdog(d);
                 case ATypeID.GetOpt: return new AGetOpt(d);
                 case ATypeID.SetOpt: return new ASetOpt(d);
-                case ATypeID.CreateView: return new ACreateView(d);
+                case ATypeID.CreateView: return new ACreateView(d, _myMeta);
                 case ATypeID.DestroyView: return new ADestroyView(d);
                 case ATypeID.DestroyAllViews: return new ADestroyAllViews(d);
             }
@@ -676,6 +676,8 @@ namespace MetAF
             set { _state = value; }
         }
         private Dictionary<string, Nav> _nav;                           // all navs that exist, cited or not by Actions
+        private Dictionary<string, MetaView> _views;                           // all navs that exist, cited or not by Actions
+
         private Dictionary<string, List<AEmbedNav>> _actionUsingNav;    // dictionary[tag] of: list of Actions actually using 'tag' nav (Action cites it, and nav exists)
         private Dictionary<string, List<AEmbedNav>> _actionCitesNav;    // dictionary[tag] of: list of Actions citing use of 'tag' nav
         private string _s_sn; // just a scratch 'state name' variable
@@ -700,6 +702,7 @@ namespace MetAF
         {
             _state = new List<State>();
             _nav = new Dictionary<string, Nav>();
+            _views = new Dictionary<string, MetaView>();
             _uniqueTagCounter = 0;
             _actionUsingNav = new Dictionary<string, List<AEmbedNav>>();
             _actionCitesNav = new Dictionary<string, List<AEmbedNav>>();
@@ -710,6 +713,17 @@ namespace MetAF
         public string GenerateUniqueNavTag()
         {
             return "nav" + _uniqueTagCounter++.ToString();
+        }
+        public string GenerateUniqueViewTag()
+        {
+            //this may be lazy, but... I don't wanna keep a counter, so, here we are.
+            string baseName = "view";
+            int indexSuffix = 0;
+            while (_views.ContainsKey(baseName + indexSuffix.ToString()))
+            {
+                indexSuffix++;
+            }
+            return baseName + indexSuffix.ToString();
         }
         public void AddToNavsUsed(string tag, AEmbedNav actionEmbNav)
         {
@@ -737,6 +751,22 @@ namespace MetAF
                 throw new MyException("No NAV found with tag '" + tag + "'.");
             return _nav[tag];
         }
+
+
+        public void AddView(string tag, MetaView view)
+        {
+            if (_views.ContainsKey(tag))
+                throw new MyException("NAV already defined for tag '" + tag + "'.");
+            _views.Add(tag, view);
+        }
+        // Used to find out if 'tag' Nav exists, and to return it, if so
+        public MetaView GetView(string tag)
+        {
+            if (!_views.ContainsKey(tag))
+                throw new MyException("No NAV found with tag '" + tag + "'.");
+            return _views[tag];
+        }
+
 
         override public void ImportFromMet(ref FileLines f) // line# for msgs good
         {
@@ -1027,6 +1057,17 @@ namespace MetAF
                     foreach (KeyValuePair<string, Nav> sn in _nav)
                         sn.Value.ExportToMetAF(ref f);
                 }
+
+                if (_views.Count > 0)
+                {
+                    f.line.Add("");
+                    f.line.Add("~~========================= ONLY META VIEWS APPEAR BELOW THIS LINE =========================~~");
+                    f.line.Add("");
+
+                    foreach (KeyValuePair<string, MetaView> view in _views)
+                        view.Value.ExportToMetAF(ref f);
+                }
+
             }
             else
             {
