@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "MetaAF CLI": {
+      "commandName": "Project",
+      "commandLineArgs": "test.af",
+      "workingDirectory": "C:\\Users\\geoff\\source\\repos\\metaf"
+    }
+  }
+}

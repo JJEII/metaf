@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32228.430
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MetAF lib", "src\metaf_lib\MetAF lib.csproj", "{310F4ADB-9575-4D41-9B06-C573754F0347}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetaAF CLI", "src\MetaAF CLI\MetaAF CLI.csproj", "{13A501AA-EC06-4A8F-9AAE-80D5C9CCF188}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MetAF Editor", "src\MetAF Editor\MetAF Editor.csproj", "{D3132002-A612-4433-B14D-6868B6CECA3D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{310F4ADB-9575-4D41-9B06-C573754F0347}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{310F4ADB-9575-4D41-9B06-C573754F0347}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{310F4ADB-9575-4D41-9B06-C573754F0347}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{310F4ADB-9575-4D41-9B06-C573754F0347}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13A501AA-EC06-4A8F-9AAE-80D5C9CCF188}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13A501AA-EC06-4A8F-9AAE-80D5C9CCF188}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13A501AA-EC06-4A8F-9AAE-80D5C9CCF188}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13A501AA-EC06-4A8F-9AAE-80D5C9CCF188}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D3132002-A612-4433-B14D-6868B6CECA3D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D3132002-A612-4433-B14D-6868B6CECA3D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D3132002-A612-4433-B14D-6868B6CECA3D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D3132002-A612-4433-B14D-6868B6CECA3D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {53731B7C-D712-4A9E-8A1E-33A0E6191B90}
+	EndGlobalSection
+EndGlobal

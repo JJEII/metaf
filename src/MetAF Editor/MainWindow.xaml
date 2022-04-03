@@ -1,0 +1,21 @@
+﻿<Window x:Class="MetAF_Editor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MetAF_Editor"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800"
+        Name="MyWindow">
+    <Grid>
+        <ComboBox HorizontalAlignment="Left" Margin="195,105,0,0" VerticalAlignment="Top" Width="120"/>
+        <Menu>
+            <Button Content="Load File" Click="Button_Click"/>
+            <Button Content="Save File" Click="Button_Click_1"/>
+            <ComboBox x:Name="state" Width="120" SelectionChanged="ComboBox_SelectionChanged" ItemsSource="{Binding meta.states}"/>
+
+        </Menu>
+
+
+    </Grid>
+</Window>
