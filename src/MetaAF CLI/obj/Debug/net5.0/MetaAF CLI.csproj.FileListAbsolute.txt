@@ -1,9 +1,3 @@
-C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetaAF CLI.exe
-C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetaAF CLI.deps.json
-C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetaAF CLI.runtimeconfig.json
-C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetaAF CLI.runtimeconfig.dev.json
-C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetaAF CLI.dll
-C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetaAF CLI.pdb
 C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetAF lib.dll
 C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetAF lib.pdb
 C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\MetaAF CLI.csproj.AssemblyReference.cache
@@ -12,8 +6,14 @@ C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\MetaAF CLI.Ass
 C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\MetaAF CLI.AssemblyInfo.cs
 C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\MetaAF CLI.csproj.CoreCompileInputs.cache
 C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\MetaAF CLI.csproj.CopyComplete
-C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\MetaAF CLI.dll
-C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\refint\MetaAF CLI.dll
-C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\MetaAF CLI.pdb
 C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\MetaAF CLI.genruntimeconfig.cache
-C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\ref\MetaAF CLI.dll
+C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetAF.exe
+C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetAF.deps.json
+C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetAF.runtimeconfig.json
+C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetAF.runtimeconfig.dev.json
+C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetAF.dll
+C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\bin\Debug\net5.0\MetAF.pdb
+C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\MetAF.dll
+C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\refint\MetAF.dll
+C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\MetAF.pdb
+C:\Users\geoff\source\repos\metaf\src\MetaAF CLI\obj\Debug\net5.0\ref\MetAF.dll

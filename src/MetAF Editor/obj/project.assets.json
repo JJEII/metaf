@@ -2,17 +2,17 @@
   "version": 3,
   "targets": {
     "net5.0-windows7.0": {
-      "MetaAF CLI/1.0.0": {
+      "MetAF/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v5.0",
         "dependencies": {
           "MetAF lib": "1.0.0"
         },
         "compile": {
-          "bin/placeholder/MetaAF CLI.dll": {}
+          "bin/placeholder/MetAF.dll": {}
         },
         "runtime": {
-          "bin/placeholder/MetaAF CLI.dll": {}
+          "bin/placeholder/MetAF.dll": {}
         }
       },
       "MetAF lib/1.0.0": {
@@ -28,7 +28,7 @@
     }
   },
   "libraries": {
-    "MetaAF CLI/1.0.0": {
+    "MetAF/1.0.0": {
       "type": "project",
       "path": "../MetaAF CLI/MetaAF CLI.csproj",
       "msbuildProject": "../MetaAF CLI/MetaAF CLI.csproj"
@@ -41,8 +41,8 @@
   },
   "projectFileDependencyGroups": {
     "net5.0-windows7.0": [
-      "MetAF lib >= 1.0.0",
-      "MetaAF CLI >= 1.0.0"
+      "MetAF >= 1.0.0",
+      "MetAF lib >= 1.0.0"
     ]
   },
   "packageFolders": {

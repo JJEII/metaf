@@ -84,7 +84,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 using MetAF.enums;
-
+using System.Text;
 
 
 
@@ -138,7 +138,7 @@ namespace MetAF
         public const string _H = @"[A-F0-9]{8}";
         // [o]([^oc]|[oo]|[cc])*[c]
         public const string _S = @"[\" + oD + @"]([^\" + oD + @"\" + cD + @"]|\" + oD + @"\" + oD + @"|\" + cD + @"\" + cD + @")*[\" + cD + @"]";
-        public const string _L = @"[a-zA-Z_][a-zA-Z0-9_]*"; // literal	// @"(?<l> _____ |"+rx.fieldEmpty+")"
+        public const string _L = @"[a-zA-Z_][a-zA-Z0-9_-]*"; // literal	// @"(?<l> _____ |"+rx.fieldEmpty+")"
 
         private static Dictionary<string, string> typeInfo = new Dictionary<string, string>()
         {
@@ -151,7 +151,7 @@ namespace MetAF
 
         public static Dictionary<string, Regex> getLeadIn = new Dictionary<string, Regex>()
         {
-            ["StateIfDoNav"] = new Regex(@"^(?<tabs>[\t]*)(?<type>STATE\:|IF\:|DO\:|NAV\:)", RegexOptions.Compiled),
+            ["StateIfDoNav"] = new Regex(@"^(?<tabs>[\t]*)(?<type>STATE\:|IF\:|DO\:|NAV\:|VIEW\:)", RegexOptions.Compiled),
             ["AnyConditionOp"] = new Regex(@"^(?<tabs>[\t]*)\s*(?<op>Never|Always|All|Any|ChatMatch|MainSlotsLE|SecsInStateGE|NavEmpty|Death|VendorOpen|VendorClosed|ItemCountLE|ItemCountGE|MobsInDist_Name|MobsInDist_Priority|NeedToBuff|NoMobsInDist|BlockE|CellE|IntoPortal|ExitPortal|Not|PSecsInStateGE|SecsOnSpellGE|BuPercentGE|DistToRteGE|Expr|ChatCapture)", RegexOptions.Compiled),
             ["AnyActionOp"] = new Regex(@"^(?<tabs>[\t]*)\s*(?<op>None|SetState|DoAll|EmbedNav|CallState|Return|DoExpr|ChatExpr|Chat|SetWatchdog|ClearWatchdog|GetOpt|SetOpt|CreateView|DestroyView|DestroyAllViews)", RegexOptions.Compiled),
             ["AnyNavNodeType"] = new Regex(@"^\t(?<type>flw|pnt|prt|rcl|pau|cht|vnd|ptl|tlk|chk|jmp)", RegexOptions.Compiled),
@@ -162,6 +162,7 @@ namespace MetAF
         {
             ["STATE:"] = new Regex(@"^\s+(?<s>" + _S + ")$", RegexOptions.Compiled),
             ["NAV:"] = new Regex(@"^\s+(?<l>" + _L + @")\s+(?<l2>circular|linear|once|follow)$", RegexOptions.Compiled),
+            ["VIEW:"] = new Regex(@"^\s+(?<viewId>" + _L + @")\s*$", RegexOptions.Compiled),
 
             ["Never"] = R_Empty,
             ["Always"] = R_Empty,
@@ -230,7 +231,8 @@ namespace MetAF
             ["IF:"] = "Required: 'IF:' must be tabbed in once, followed by a Condition operation, on the same line.",
             ["DO:"] = "Required: 'DO:' must be tabbed in twice, followed by an Action operation, on the same line.",
             ["NAV:"] = "Required: 'NAV:' must be at the start of the line, followed by a literal tag and a literal nav type (circular, linear, once, or follow). (" + typeInfo["_L"] + ")",
-
+            ["VIEW:"] = "Required: 'VIEW:' must be at the start of the line, followed by a literal ID and a string view title (" + typeInfo["_S"] + ")",
+            
             ["Generic"] = "Syntax error. (General tips: double-check tabbing and state/rule structure (IF-DO pairs?), and ensure there are no stray characters, and that you're using " + oD + (oD.CompareTo(cD) != 0 ? " " + cD : "") + @" string delimiters properly.)",
 
             ["Never"] = "'Never' requires: no inputs.",
@@ -641,7 +643,7 @@ namespace MetAF
                 match = rx.getLeadIn["StateIfDoNav"].Match(f.line[f.L]); // don't advance line
                 if (!match.Success)
                     throw new MyException("[LINE " + (f.L + f.offset + 1).ToString() + "] " + GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. Expected 'STATE:', 'IF:', or 'NAV:' line. " + rx.getInfo["STATE:"]);
-                if (match.Groups["type"].Value.CompareTo("STATE:") == 0 || match.Groups["type"].Value.CompareTo("NAV:") == 0)
+                if (match.Groups["type"].Value.CompareTo("STATE:") == 0 || match.Groups["type"].Value.CompareTo("NAV:") == 0 || match.Groups["type"].Value.CompareTo("VIEW:") == 0)
                     break;
 
                 // Start of a new Rule ? ("IF:" line ?)
@@ -710,15 +712,45 @@ namespace MetAF
             _loadedMet = loadedMet;
         }
 
-        public string GenerateUniqueNavTag()
+        private string sanitizeForID(string input)
         {
-            return "nav" + _uniqueTagCounter++.ToString();
+            return new StringBuilder(input)
+                .Replace(".nav", "")
+                .Replace(" ", "_")
+                .Replace("[None]", "")
+                .Replace("[none]", "")
+                .Replace("[", "")
+                .Replace("]", "")
+                .Replace(".", "")
+                .Replace("(", "")
+                .Replace(")", "")
+                .ToString()
+                .ToLower();
         }
-        public string GenerateUniqueViewTag()
+        public string GenerateUniqueNavTag(string navName = null)
         {
+            navName = sanitizeForID(navName);
+            string baseName = navName == "" ? "nav" : navName;
+            if (!_nav.ContainsKey(baseName))
+            {
+                return baseName;
+            }
+            int indexSuffix = 1;
+            while (_nav.ContainsKey(baseName + indexSuffix.ToString()))
+            {
+                indexSuffix++;
+            }
+            return baseName + indexSuffix.ToString();
+        }
+        public string GenerateUniqueViewTag(string viewId = "")
+        {
+            viewId = sanitizeForID(viewId);
             //this may be lazy, but... I don't wanna keep a counter, so, here we are.
-            string baseName = "view";
-            int indexSuffix = 0;
+            string baseName = viewId == "" ? "view" : viewId;
+            if(!_views.ContainsKey(baseName)) {
+                return baseName;
+            }
+            int indexSuffix = 1;
             while (_views.ContainsKey(baseName + indexSuffix.ToString()))
             {
                 indexSuffix++;
@@ -756,7 +788,7 @@ namespace MetAF
         public void AddView(string tag, MetaView view)
         {
             if (_views.ContainsKey(tag))
-                throw new MyException("NAV already defined for tag '" + tag + "'.");
+                throw new MyException("View already defined for tag '" + tag + "'.");
             _views.Add(tag, view);
         }
         // Used to find out if 'tag' Nav exists, and to return it, if so
@@ -898,7 +930,15 @@ namespace MetAF
                     if (!match.Success)
                         throw new MyException("[LINE " + (f.L + f.offset + 1).ToString() + "] " + GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo["STATE:"]);
                     if (match.Groups["type"].Value.CompareTo("NAV:") == 0)
-                        break;
+                    {
+                        parseNavs(ref f);
+                        continue;
+                    }
+                    if (match.Groups["type"].Value.CompareTo("VIEW:") == 0)
+                    {
+                        parseViews(ref f);
+                        continue;
+                    }
 
                     // Start of new State ? ("STATE:" line ?)
                     if (match.Groups["type"].Value.CompareTo("STATE:") != 0)
@@ -937,29 +977,8 @@ namespace MetAF
 
             // NAVS
 
-            // loop until EOF
-            while (f.L < f.line.Count)
-            {
-                // Find next non-"blank" line, or EOF
-                f.L--;
-                while (++f.L < f.line.Count && (match = rx.R__LN.Match(f.line[f.L])).Success)
-                    ;
-
-                // Hit end of file; done
-                if (f.L >= f.line.Count)
-                    break;
-
-                // Found first non-"blank" line... does it start with "NAV:" ? (It needs to.)
-                match = rx.getLeadIn["StateIfDoNav"].Match(f.line[f.L]); // don't advance line
-                if (!match.Success || match.Groups["type"].Value.CompareTo("NAV:") != 0)
-                    throw new MyException("[LINE " + (f.L + f.offset + 1).ToString() + "] " + GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. " + rx.getInfo["NAV:"]);
-
-                // Import this nav's contents
-                Nav tmpNav = new Nav(this);
-                f.C = 4; // Math.Min(4,f.line[f.L].Length-1);
-                tmpNav.ImportFromMetAF(ref f);  // the nav adds itself to the list at the end of this call
-            }
-
+            parseNavs(ref f);
+            parseViews(ref f);
 
             // DONE reading all meta info (state and nav) from file
 
@@ -994,6 +1013,62 @@ namespace MetAF
                         Console.WriteLine("[LINE " + (en.Value.my_metAFftagline + 1).ToString() + "] WARNING: " + GetType().Name.ToString() + ".ImportFromMetAF: Nav tag (" + en.Key + ") is never used.");
             }
         }
+        //Nav parsing mode, extracted/modified from "bottom nav" code
+        private void parseViews(ref FileLines f)
+        {
+            Match match;
+            // loop until EOF
+            while (f.L < f.line.Count)
+            {
+                // Find next non-"blank" line, or EOF
+                f.L--;
+                while (++f.L < f.line.Count && (match = rx.R__LN.Match(f.line[f.L])).Success)
+                    ;
+
+                // Hit end of file; done
+                if (f.L >= f.line.Count)
+                    break;
+
+                // Found first non-"blank" line... does it start with "NAV:" ? (It needs to.)
+                match = rx.getLeadIn["StateIfDoNav"].Match(f.line[f.L]); // don't advance line
+                if (!match.Success || match.Groups["type"].Value.CompareTo("VIEW:") != 0)
+                    return; //found something that's not a nav, exit nav parsing mode.
+
+
+                MetaView tmpView = new MetaView(this);
+                f.C = 0;
+                tmpView.readFromMetAF(ref f);
+
+            }
+        }
+        //Nav parsing mode, extracted/modified from "bottom nav" code
+        private void parseNavs(ref FileLines f)
+        {
+            Match match;
+            // loop until EOF
+            while (f.L < f.line.Count)
+            {
+                // Find next non-"blank" line, or EOF
+                f.L--;
+                while (++f.L < f.line.Count && (match = rx.R__LN.Match(f.line[f.L])).Success)
+                    ;
+
+                // Hit end of file; done
+                if (f.L >= f.line.Count)
+                    break;
+
+                // Found first non-"blank" line... does it start with "NAV:" ? (It needs to.)
+                match = rx.getLeadIn["StateIfDoNav"].Match(f.line[f.L]); // don't advance line
+                if (!match.Success || match.Groups["type"].Value.CompareTo("NAV:") != 0)
+                    return; //found something that's not a nav, exit nav parsing mode.
+
+                // Import this nav's contents
+                Nav tmpNav = new Nav(this);
+                f.C = 4; // Math.Min(4,f.line[f.L].Length-1);
+                tmpNav.ImportFromMetAF(ref f);  // the nav adds itself to the list at the end of this call
+            }
+        }
+
         private void CollapseIfDo(ref FileLines f)
         {
             int lead = 0;
@@ -1065,7 +1140,7 @@ namespace MetAF
                     f.line.Add("");
 
                     foreach (KeyValuePair<string, MetaView> view in _views)
-                        view.Value.ExportToMetAF(ref f);
+                        view.Value.WriteToMetAF(ref f);
                 }
 
             }

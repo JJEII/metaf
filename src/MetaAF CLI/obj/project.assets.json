@@ -34,7 +34,7 @@
     "version": "1.0.0",
     "restore": {
       "projectUniqueName": "C:\\Users\\geoff\\source\\repos\\metaf\\src\\MetaAF CLI\\MetaAF CLI.csproj",
-      "projectName": "MetaAF CLI",
+      "projectName": "MetAF",
       "projectPath": "C:\\Users\\geoff\\source\\repos\\metaf\\src\\MetaAF CLI\\MetaAF CLI.csproj",
       "packagesPath": "C:\\Users\\geoff\\.nuget\\packages\\",
       "outputPath": "C:\\Users\\geoff\\source\\repos\\metaf\\src\\MetaAF CLI\\obj\\",

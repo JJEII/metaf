@@ -240,6 +240,7 @@ namespace MetAF
                     if (match.Groups["type"].Value.CompareTo("STATE:") == 0
                         || match.Groups["type"].Value.CompareTo("IF:") == 0
                         || match.Groups["type"].Value.CompareTo("NAV:") == 0
+                        || match.Groups["type"].Value.CompareTo("VIEW:") == 0
                     )
                     {
                         f.C = 0;
@@ -332,7 +333,7 @@ namespace MetAF
             try { nNodesInNav = int.Parse(f.line[f.L++]); }
             catch (Exception e) { throw new MyException("[LINE " + (f.L + f.offset).ToString() + "] " + GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 
-            _tag = _myMeta.GenerateUniqueNavTag();
+            _tag = _myMeta.GenerateUniqueNavTag(_m_name);
             _myMeta.AddToNavsUsed(_tag, this);
             nav.tag = _tag;
 
@@ -1049,12 +1050,14 @@ namespace MetAF
     {
         // For whatever reason, the XML field of the CreateView action fails to include a newline between it and whatever immediately follows it.
         public static List<int> breakitFixIndices = new List<int>();
-        private string _s_viewName, _s_view_xml,_s_viewKey;
+        private string _s_viewName,_s_viewKey;
         private Meta _meta;
+
+
         public override ATypeID typeid { get { return ATypeID.CreateView; } }
         public ACreateView(int d, Meta m) : base(d) 
         {
-            _s_viewName = _s_view_xml = _s_viewKey = ""; 
+            _s_viewName = _s_viewKey = ""; 
             _meta = m;
         }
         private string _m_viewName
@@ -1067,16 +1070,7 @@ namespace MetAF
             set { _s_viewName = rx.a_SetStr(value); }
             get { return rx.a_GetStr(_s_viewName); }
         }
-        private string _m_view_xml
-        {
-            set { _s_view_xml = rx.m_SetStr(value); }
-            get { return rx.m_GetStr(_s_view_xml); }
-        }
-        private string _a_view_xml
-        {
-            set { _s_view_xml = rx.a_SetStr(value); }
-            get { return rx.a_GetStr(_s_view_xml); }
-        }
+
         override public void ImportFromMet(ref FileLines f) // line# for msgs good
         { // [LINE 188] ACreateView.ImportFromMet: File format error. Expected 20.
             if (f.line[f.L++].CompareTo("TABLE") != 0)
@@ -1144,7 +1138,8 @@ namespace MetAF
             f.line[r] = f.line[f.L].Substring(Math.Max(f.line[f.L].Length - 1, 0), 1); // chop apart the XML line ...
             f.line[f.L] = f.line[f.L].Substring(0, f.line[f.L].Length - 1);            // ... since it has more on it than it should
 
-            _m_view_xml = f.line[f.L++];
+            string xml = f.line[f.L++];
+            
             //try { this._xml = f.line[f.L++]; }
             //catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: " + ".ImportFromMet: " + e.Message); }
 
@@ -1153,28 +1148,28 @@ namespace MetAF
             //Parse xml string and create view data structure
 
 #if (!_DBG_)
-            //try
+            try
 #endif
             {
-                XmlDocument xmlDoc = new XmlDocument();
-                xmlDoc.LoadXml(_m_view_xml);
-
-                XmlElement viewNode = (XmlElement)xmlDoc.GetElementsByTagName("view")[0];
                 var metaView = new MetaView(_meta);
-                if(metaView.formId != null && metaView.formId.Length > 0)
-                { // id embeded in xml
-                    _s_viewKey = metaView.formId;
-                } else
-                { // no id, make one
-                    metaView.formId = _s_viewKey = _meta.GenerateUniqueViewTag();
+                metaView.viewId = _meta.GenerateUniqueViewTag(_s_viewName);
+                if (xml.Length > 0)
+                {
+                    metaView.FromXml(xml);
                 }
-                metaView.ImportFromMet(ref f, viewNode);
+                else
+                {
+                    
+                    //add empty view to meta
+                    _meta.AddView(metaView.viewId, metaView);
+                }
+                _s_viewKey = metaView.viewId;
             }
 #if (!_DBG_)
-           /*catch (Exception ex)
+           catch (Exception ex)
             {
-                throw new MyException("[LINE " + (f.L + f.offset).ToString() + "] " + GetType().Name.ToString() + ".ImportFromMetAF: Invlaid XML " + _m_view_xml);
-            }*/
+                throw new MyException("[LINE " + (f.L + f.offset).ToString() + "] " + GetType().Name.ToString() + ".ImportFromMetAF: Invlaid XML " + xml);
+            }
 #endif
 
 
@@ -1199,8 +1194,11 @@ namespace MetAF
             f.line.Add("s");
             f.line.Add("x"); // "v"
             f.line.Add("ba"); // "s"
-            f.line.Add(_m_view_xml.Length.ToString()); // nothing??
-            f.line.Add(_m_view_xml);
+            MetaView view = _meta.GetView(_s_viewKey);
+            string xmlOut = view.toMetXml();
+            
+            f.line.Add(xmlOut.Length.ToString()); // nothing??
+            f.line.Add(xmlOut);
             breakitFixIndices.Add(f.line.Count - 1); // For dealing with the CreateView "bug"
         }
         override public void ImportFromMetAF(ref FileLines f) // line# for msgs good
@@ -1214,12 +1212,12 @@ namespace MetAF
             try
             {
                 _a_viewName = match.Groups["s"].Value.Substring(1, match.Groups["s"].Value.Length - 2); // length is at least 2; remove delimiters
-                _a_view_xml = match.Groups["s2"].Value.Substring(1, match.Groups["s2"].Value.Length - 2); // length is at least 2; remove delimiters
+                _s_viewKey = match.Groups["s2"].Value.Substring(1, match.Groups["s2"].Value.Length - 2); // length is at least 2; remove delimiters
 
                 // check if external XML file...
-                if (_a_view_xml.Length > 0 && _a_view_xml[0] == ':')
+                if (_s_viewKey.Length > 0 && _s_viewKey[0] == ':')
                 {
-                    string fname = _m_view_xml.Substring(1).Trim();
+                    string fname = _s_viewKey.Substring(1).Trim();
                     if (System.IO.File.Exists(System.IO.Path.Join(f.path, fname))) // relative path ?
                         fname = System.IO.Path.Join(f.path, fname);
                     else if (!System.IO.File.Exists(fname)) // not absolute path either ?
@@ -1238,7 +1236,37 @@ namespace MetAF
                     if (!xmlStrMatch.Success) // if not-doubled-up string delimiter found in XML file, throw exception
                         throw new MyException("[LINE " + (f.L + f.offset).ToString() + "] " + GetType().Name.ToString() + ".ImportFromMetAF: External XML file still must conform to metaf string restrictions, with the exception of newline characters being allowed. Initial/terminal string delimiters, " + rx.oD + " and " + rx.cD + ", should be omitted, but all internal ones must be doubled-up. (" + rx.getInfo[typeid.ToString()] + ")");
 
-                    _a_view_xml = acc;
+                    string xml = acc;
+                    var metaView = new MetaView(_meta);
+                    metaView.viewId = _meta.GenerateUniqueViewTag(_s_viewName);
+                    if (xml.Length > 0)
+                    {
+                        metaView.FromXml(xml);
+                    }
+                    else
+                    {
+
+                        //add empty view to meta
+                        _meta.AddView(metaView.viewId, metaView);
+                    }
+                    _s_viewKey = metaView.viewId;
+                }
+                else if (_s_viewKey.Length > 0 && _s_viewKey[0] == '<')
+                {
+                    string xml = _s_viewKey;
+                    var metaView = new MetaView(_meta);
+                    metaView.viewId = _meta.GenerateUniqueViewTag(_s_viewName);
+                    if (xml.Length > 0)
+                    {
+                        metaView.FromXml(xml);
+                    }
+                    else
+                    {
+
+                        //add empty view to meta
+                        _meta.AddView(metaView.viewId, metaView);
+                    }
+                    _s_viewKey = metaView.viewId;
                 }
             }
             catch (MyException e) { throw new MyException(e.Message); }

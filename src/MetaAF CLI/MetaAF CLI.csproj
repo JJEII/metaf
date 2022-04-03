@@ -4,6 +4,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
     <RootNamespace>MetaAF_CLI</RootNamespace>
+	<AssemblyName>MetAF</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

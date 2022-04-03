@@ -20,12 +20,12 @@ C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\refi
 C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor.pdb
 C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor.genruntimeconfig.cache
 C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\ref\MetAF Editor.dll
-C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetaAF CLI.deps.json
-C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetaAF CLI.runtimeconfig.json
-C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetaAF CLI.runtimeconfig.dev.json
-C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetaAF CLI.exe
-C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetaAF CLI.dll
 C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF lib.dll
-C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetaAF CLI.pdb
 C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF lib.pdb
 C:\Users\geoff\source\repos\metaf\src\MetAF Editor\obj\Debug\net5.0-windows\MetAF Editor.csproj.CopyComplete
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF.deps.json
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF.runtimeconfig.json
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF.runtimeconfig.dev.json
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF.exe
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF.dll
+C:\Users\geoff\source\repos\metaf\src\MetAF Editor\bin\Debug\net5.0-windows\MetAF.pdb

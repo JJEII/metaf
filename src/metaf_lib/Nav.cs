@@ -1119,12 +1119,17 @@ namespace MetAF
                         break;
 
                     // Found first non-"blank" line... is it a "NAV:" line ?
-                    match = rx.getLeadIn["StateIfDoNav"].Match(f.line[f.L]); // don't advance line
+                    var ln = f.line[f.L];
+                    match = rx.getLeadIn["StateIfDoNav"].Match(ln); // don't advance line
                     if (match.Success)
                     {
-                        if (match.Groups["type"].Value.CompareTo("NAV:") == 0)
-                            break;
-                        throw new MyException("[LINE " + (f.L + f.offset + 1).ToString() + "] " + GetType().Name.ToString() + ".ImportFromMetAF: Syntax error. 'STATE:', 'IF:', and 'DO:' lines must all be above the first 'NAV:' line. " + rx.getInfo["NAV:"]);
+                        //if (match.Groups["type"].Value.CompareTo("NAV:") != 0)
+                        {
+                            _myMeta.AddNav(tag, this);
+                            return; //ran into something else, nav must be done... or broke.
+                        }
+                        //advance line
+                        //f.L++;
                     }
 
                     // Get the node type

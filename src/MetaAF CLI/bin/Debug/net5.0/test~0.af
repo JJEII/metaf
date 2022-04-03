@@ -40,10 +40,104 @@
 STATE: {Default} ~~ {
 	IF:	Always
 		DO:	DoAll
-				CreateView {View 1} {<?xml version="1.0"?><view width="300" height="500" title="1"><control type="layout"><control type="button" name="b1" left="0" top="0" width="50" height="30" text="To test" setstate="test" /><control type="button" name="b2" left="55" top="0" width="50" height="30" text="to default" setstate="Default" /></control></view>}
+				CreateView {View 1} {view_1}
+				EmbedNav nav {[none]}
 ~~ }
 STATE: {test} ~~ {
 	IF:	Always
 		DO:	DoAll
-				CreateView {View 2} {<?xml version="1.0"?><view width="300" height="500" title="view 2"><control type="layout"><control type="button" name="b1" left="0" top="0" width="50" height="30" text="To test" setstate="test" /><control type="button" name="b2" left="55" top="0" width="50" height="30" text="to default" setstate="Default" /></control></view>}
+				CreateView {View 2(internal)} {view_2internal}
+				CreateView {View 2(raw)} {view_2raw}
+				CreateView {View 2(external)} {view_2external}
+				EmbedNav bsd-line {bsd-line.nav}
+~~ }
+
+~~========================= ONLY NAVS APPEAR BELOW THIS LINE =========================~~
+
+NAV: nav once ~~ {
+	cht -67.0894414583842 -87.4875180602074 0.200027084350586 {/vt opt set EnableBuffing false}
+	rcl -67.0894414583842 -87.4875180602074 0.200027084350586 {Lifestone Recall}
+	pau -67.0894414583842 -87.4875180602074 0.200027084350586 5000
+	cht -67.0894414583842 -87.4875180602074 0.200027084350586 {/t Parchment, buff}
+	pau -67.0894414583842 -87.4875180602074 0.200027084350586 50000
+	cht -67.0894414583842 -87.4875180602074 0.200027084350586 {/vt opt set EnableBuffing true}
+~~ }
+NAV: bsd-line linear ~~ {
+	pnt -100.731995042165 -100.175937525431 -0.0749791701634725
+	pau -67.0894414583842 -87.4875180602074 0.200027084350586 10000
+	pnt -100.733969020844 -100.298845672607 -0.0749791701634725
+	pnt -100.772968673706 -100.392456563314 -0.0749791701634725
+	pau -67.0894414583842 -87.4875180602074 0.200027084350586 10000
+	pnt -100.774269898732 -100.505573654175 -0.0749791701634725
+	pau -67.0894414583842 -87.4875180602074 0.200027084350586 10000
+	pnt -100.774327214559 -100.674853515625 -0.0749791701634725
+	pau -67.0894414583842 -87.4875180602074 0.200027084350586 10000
+	pnt -100.897062635422 -100.67919921875 -0.0999791701634725
+	pau -67.0894414583842 -87.4875180602074 0.200027084350586 10000
+	pnt -100.901123873393 -100.590747261047 -0.0999791701634725
+	pau -67.0894414583842 -87.4875180602074 0.200027084350586 10000
+	pnt -100.984451023738 -100.59235013326 -0.0999791701634725
+	pau -67.0894414583842 -87.4875180602074 0.200027084350586 10000
+	pnt -100.982091617584 -100.677060826619 -0.0999791701634725
+	pau -67.0894414583842 -87.4875180602074 0.200027084350586 10000
+	pnt -101.111851557096 -100.673119608561 -0.0749791701634725
+	pau -67.0894414583842 -87.4875180602074 0.200027084350586 10000
+	pnt -101.10799639225 -100.564909426371 -0.0749791701634725
+	pau -67.0894414583842 -87.4875180602074 0.200027084350586 10000
+~~ }
+
+~~========================= ONLY META VIEWS APPEAR BELOW THIS LINE =========================~~
+
+VIEW: view_1 ~~{
+<view vmargin="1" hmargin="1" minwidth="50" widthperchar="6" heightperline="12" title="1">
+ <control vmargin="3" hmargin="5" type="layout">
+  <control vmargin="1" hmargin="1" type="button" name="b1" text="To test" setstate="test" />
+  <control type="button" name="b2" text="to default" setstate="Default" />
+ </control>
+</view>
+~~ }
+VIEW: view_2internal ~~{
+<view vmargin="10" hmargin="10" minwidth="50" widthperchar="6" heightperline="12" width="175" height="186" title="Hunting Spot">
+ <control vmargin="5" hmargin="5" type="layout" left="5" width="175" height="181">
+  <control vmargin="50" type="button" text="Top" setstate="hunt-top" top="5" left="10" width="50" height="112" />
+  <control type="button" text="North" setstate="hunt-north" top="5" left="65" width="50" height="22" />
+  <control type="button" top="5" left="120" width="50" height="22" />
+  <control type="button" text="East" setstate="hunt-east" top="127" left="10" width="50" height="22" />
+  <control type="button" text="Center" setstate="hunt-center" top="127" left="65" width="50" height="22" />
+  <control type="button" text="West" setstate="hunt-west" top="127" left="120" width="50" height="22" />
+  <control type="button" top="159" left="10" width="50" height="22" />
+  <control type="button" text="South" setstate="hunt-south" top="159" left="65" width="50" height="22" />
+  <control type="button" top="159" left="120" width="50" height="22" />
+ </control>
+</view>
+~~ }
+VIEW: view_2raw ~~{
+<view vmargin="10" hmargin="10" minwidth="50" widthperchar="6" heightperline="12" width="175" height="186" title="Hunting Spot">
+ <control vmargin="5" hmargin="5" type="layout" left="5" width="175" height="181">
+  <control vmargin="50" type="button" text="Top" setstate="hunt-top" top="5" left="10" width="50" height="112" />
+  <control type="button" text="North" setstate="hunt-north" top="5" left="65" width="50" height="22" />
+  <control type="button" top="5" left="120" width="50" height="22" />
+  <control type="button" text="East" setstate="hunt-east" top="127" left="10" width="50" height="22" />
+  <control type="button" text="Center" setstate="hunt-center" top="127" left="65" width="50" height="22" />
+  <control type="button" text="West" setstate="hunt-west" top="127" left="120" width="50" height="22" />
+  <control type="button" top="159" left="10" width="50" height="22" />
+  <control type="button" text="South" setstate="hunt-south" top="159" left="65" width="50" height="22" />
+  <control type="button" top="159" left="120" width="50" height="22" />
+ </control>
+</view>
+~~ }
+VIEW: view_2external ~~{
+<view vmargin="10" hmargin="10" minwidth="50" widthperchar="6" heightperline="12" width="175" height="186" title="Hunting Spot">
+ <control vmargin="5" hmargin="5" type="layout" left="5" width="175" height="181">
+  <control vmargin="50" type="button" text="Top" setstate="hunt-top" top="5" left="10" width="50" height="112" />
+  <control type="button" text="North" setstate="hunt-north" top="5" left="65" width="50" height="22" />
+  <control type="button" top="5" left="120" width="50" height="22" />
+  <control type="button" text="East" setstate="hunt-east" top="127" left="10" width="50" height="22" />
+  <control type="button" text="Center" setstate="hunt-center" top="127" left="65" width="50" height="22" />
+  <control type="button" text="West" setstate="hunt-west" top="127" left="120" width="50" height="22" />
+  <control type="button" top="159" left="10" width="50" height="22" />
+  <control type="button" text="South" setstate="hunt-south" top="159" left="65" width="50" height="22" />
+  <control type="button" top="159" left="120" width="50" height="22" />
+ </control>
+</view>
 ~~ }
