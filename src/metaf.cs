@@ -56,6 +56,10 @@ THIS FILE'S ORGANIZATION, ROUGHLY:
 
 
 Ideas for possible future items:
+	* ~\~\~... in strings
+	* Multi-line string input parameters
+	* Configuration file/s (pull the file header text, etc., out into config file/s.)
+	* support external nav files in NAV area (on fail, issue warning and load default nav with single 'cht' node announcing the nav load was a failure???)
 	d Improve docs for newbies (clearer drag/drop, metaf isn't an editor, multi-file conversion(?))
 	* Utility Belt functions added to documentation and mark-up XMLs
 	d Support external file references and content for "Create View" XML (auto flattened)
@@ -77,6 +81,94 @@ Ideas for possible future items:
 0.7.3.3 -- fixed processing line vs file line misalignment by adding an offset variable all over the place
  */
 
+
+/*
+======================================================================
+NOTE: Following are reverse-engineered data inferences for .met (and .nav) file formats. Most of the items have lead-in id codes that identify
+which is which. (See the "Rule" definition near the list top (and "Nav" definition).) These are all defined on a per-file-line basis, where
+every comma-delimited list entry is on its own line in the .met (or .nav) file. (recursive specials: CAll, CAny, ADoAll (and sort of related: CNot))
+----------
+META (NOTE: This starts the file.)
+	"1","CondAct","5","CType","AType","CData","AData","State","n","n","n","n","n",int ruleCount, { iterate ruleCount times: Rule importRule }
+----------
+STATE (NOTE: States are not a separately defined thing in .met format; states are constructed from rules that tie themselves to them.)
+	(N/A)
+----------
+RULE (NOTE: While each Rule is defined by only one Condition and one Action, those may be "wrappers" that contain others inside them; e.g., CAll, CAny, or ADoAll.)
+	"i",int conditionID,"i",int actionID,Condition importCondition,Action importAction,"s",string stateName
+----------
+CONDITIONS (NOTE: Which Condition to import is determined by which conditionID was specified; e.g., see Rule definition, or CAll, CAny, and CNot.)
+								//Unassigned with id=-1
+	               CNever (id=0): "i","0"
+	              CAlways (id=1): "i","0"
+	                 CAll (id=2): "TABLE","2","K","V","n","n",int count, { iterate count times: "i", int conditionID, Condition recurseImportCondition }
+	                 CAny (id=3): "TABLE","2","K","V","n","n",int count, { iterate count times: "i", int conditionID, Condition recurseImportCondition }
+	           CChatMatch (id=4): "s",regexString chat
+	         CMainSlotsLE (id=5): "i",int slots
+	       CSecsInStateGE (id=6): "i",int seconds
+	            CNavEmpty (id=7): "i","0"
+	               CDeath (id=8): "i","0"
+	          CVendorOpen (id=9): "i","0"
+	       CVendorClosed (id=10): "i","0"
+	        CItemCountLE (id=11): "TABLE","2","k","v","n","n","2","s","n","s",string itemName,"s","c","i",int itemCount
+	        CItemCountGE (id=12): "TABLE","2","k","v","n","n","2","s","n","s",string itemName,"s","c","i",int itemCount
+	    CMobsInDist_Name (id=13): "TABLE","2","k","v","n","n","3","s","n","s",string regexString,"s","c","i",int count,"s","r","d",double range
+	CMobsInDist_Priority (id=14): "TABLE","2","k","v","n","n","3","s","p","i",int priority,"s","c","i",int count,"s","r","d",double range
+	         CNeedToBuff (id=15): "i","0"
+	       CNoMobsInDist (id=16): "TABLE","2","k","v","n","n","1","s","r","d",double range
+	             CBlockE (id=17): "i",int block
+	              CCellE (id=18): "i",int cell
+	         CIntoPortal (id=19): "i","0"
+	         CExitPortal (id=20): "i","0"
+	                CNot (id=21): "TABLE","2","K","V","n","n",int countIgnored (== 1),"i",int conditionID,Condition importCondition
+	     CPSecsInStateGE (id=22): "i",int seconds
+	      CSecsOnSpellGE (id=23): "TABLE","2","k","v","n","n","2","s","sid","i",int spellID,"s","sec","i",int seconds
+	        CBuPercentGE (id=24): "i",int burden
+	        CDistToRteGE (id=25): "TABLE","2","k","v","n","n","1","s","dist","d",double distance
+	               CExpr (id=26): "TABLE","2","k","v","n","n","1","s","e","s",string expression
+								//ClientDialogPopup with id=27: some type from the past? it's not in VT now, and I didn't find any files with it, nor data on it, other than it supposedly existing at some point (maybe?).
+	        CChatCapture (id=28): "TABLE","2","k","v","n","n","2","s","p","s",regexString pattern,"s","c","s",string colorIdList
+----------
+ACTIONS (NOTE: Which Action to import is determined by which actionID was specified; e.g., see Rule definition, or ADoAll.)
+		(NOTE: ACreateView does not have a newline at the XML parameter's end; it is the only such case of this; the next parameter ("s" and stateName) begins immediately after the XML ends, on the same line.)
+							//Unassigned with id=-1
+	            ANone (id=0): "i","0"
+	        ASetState (id=1): "s",string state
+	            AChat (id=2): "s",string chat
+	           ADoAll (id=3): "TABLE","2","K","V","n","n",int count, { iterate count times: "i", int actionID, Action recurseImportAction }
+	        AEmbedNav (id=4): "ba",int bytesInNavInclNewlines,string navInGameName,int navNodeCount, {if bytesInNavInclNewlines>5 then importNav}
+	       ACallState (id=5): "TABLE","2","k","v","n","n","2","s","st","s",string toState,"s","ret","s",string retState
+	          AReturn (id=6): "i","0"
+	          ADoExpr (id=7): "TABLE","2","k","v","n","n","1","s","e","s",string expression
+	        AChatExpr (id=8): "TABLE","2","k","v","n","n","1","s","e","s",string expression
+	     ASetWatchdog (id=9): "TABLE","2","k","v","n","n","3","s","s","s",string state,"s","r","d",double range,"s","t","d",double time
+	  AClearWatchdog (id=10): "TABLE","2","k","v","n","n","0"
+	         AGetOpt (id=11): "TABLE","2","k","v","n","n","2","s","o","s",string opt,"s","v","s",string val
+	         ASetOpt (id=12): "TABLE","2","k","v","n","n","2","s","o","s",string opt,"s","v","s",string expression
+	     ACreateView (id=13): "TABLE","2","k","v","n","n","2","s","n","s",string view,"s","x","ba",int byteCountOfXML,string xml
+	    ADestroyView (id=14): "TABLE","2","k","v","n","n","1","s","n","s",string view
+	ADestroyAllViews (id=15): "TABLE","2","k","v","n","n","0"
+----------
+NAV (NOTE: This format applies in both the .nav file type and in embedded navs inside metas.)
+	"uTank2 NAV 1.2", int navTypeID, {if navTypeID is Follow then importAndWeAreDone, else { int nodesInNav, {iterate nodesInNav times: int navNodeID, NavNode importNode } } }
+----------
+NAV NODE TYPES (NOTE: Which nav node to import is determined by which navNodeID was specified; see NAV definition above.)
+			   (NOTE: The NPortal nav node type is deprecated in VirindiTank.)
+			   (NOTE: NFollow is not actually a nav node type, but a nav type (id=3; others are Circular(1), Linear(2), & Once(4)); *MY* internal nav node type for it is id=-2. An NFollow nav specifies a target's name and wid, and ends.)
+	NFollow (id=see note): string targetName, int targetWID
+	        NPoint (id=0): double x, double y, double z, "0"
+	       NPortal (id=1): double x, double y, double z, "0", int wid
+	       NRecall (id=2): double x, double y, double z, "0", int spellId
+	        NPause (id=3): double x, double y, double z, "0", double pauseSeconds
+	         NChat (id=4): double x, double y, double z, "0", string chat
+	   NOpenVendor (id=5): double x, double y, double z, "0", int vendorWID, string vendorName
+	   NPortal_NPC (id=6): double x, double y, double z, "0", string objName, int objClass (should be 14 (portal) or 37 (npc) or 10 (container)), "True", double objx, double objy, double objz
+	      NNPCTalk (id=7): double x, double y, double z, "0", string objName, int objClass (should be 37 (npc)), "True", double objx, double objy, double objz
+	   NCheckpoint (id=8): double x, double y, double z, "0"
+	         NJump (id=9): double x, double y, double z, "0", double headingDegrees, string doHoldShift (always "True" or "False"), double delayMS
+						 //Other with id=99 is reputedly defined in the VirindiTank source code
+*/
+
 //#define _DBG_
 
 using System;
@@ -93,7 +185,7 @@ namespace metaf
 	}
 #endif
 	class CmdLnParms {
-		public static string version = "METa Alternate Format (metaf), v.0.7.3.3     GPLv3 Copyright (C) 2021     J. Edwards";
+		public static string version = "METa Alternate Format (metaf), v.0.7.3.4     GPLv3 Copyright (C) 2021     J. Edwards";
 		public static string newFileName = "__NEW__.af";
 		public static string newnavFileName = "__NEWNAV__.af";
 		public static string readmeFileName = "metafREADME.af";
@@ -228,6 +320,11 @@ namespace metaf
 
 	public class rx
 	{
+
+		public const string oD = "{"; // opening string delimiter
+		public const string cD = "}"; // closing string delimiter
+		public const string LC = "~~"; // Line-Comment sequence (changing this would require find/replace-all inside the embedded doc text, and updating the four methods directly below and the _S regex a few lines lower)
+
 		//RULES:
 		//	1. INTERNALLY STORE A VALID METAF STRING (minus delimiters).
 		//	2. MET Import/Export
@@ -249,6 +346,9 @@ namespace metaf
 			string t = new Regex(@"\" + rx.oD).Replace(s, rx.oD + rx.oD);
 			if (rx.oD.CompareTo(rx.cD) != 0)
 				t = new Regex(@"\" + rx.cD).Replace(t, rx.cD + rx.cD);
+			//t = new Regex(@"\\").Replace(t,@"\\\\"); // enable chained/escaped tildes
+			//t = new Regex(@"~").Replace(t,@"\\~"); // enable chained/escaped tildes
+			//t = new Regex(@"(^|[^~])\\~").Replace(t,"${1}~"); // enable chained/escaped tildes
 			return t;
 		}
 		static public string m_GetStr(string s) // met get: shrink the string (oDoD --> oD and cDcD --> cD)
@@ -256,22 +356,24 @@ namespace metaf
 			string t = new Regex(@"\" + rx.oD + @"\" + rx.oD).Replace(s, rx.oD);
 			if (rx.oD.CompareTo(rx.cD) != 0)
 				t = new Regex(@"\" + rx.cD + @"\" + rx.cD).Replace(t, rx.cD);
+			//t = new Regex(@"((^|[^\\])(\\\\)*)\\~").Replace(t,"${1}~"); // enable chained/escaped tildes
+			//t = new Regex(@"\\\\").Replace(t,@"\\"); // enable chained/escaped tildes
 			return t;
 		}
 
-		public const string oD = "{"; // opening string delimiter
-		public const string cD = "}"; // closing string delimiter
-
-		public static string __2EOL = @"\s*(~~.*)?$";//new Regex( , RegexOptions.Compiled);
+		public static string __2EOL = @"\s*(" + rx.LC + @".*)?$";//new Regex( , RegexOptions.Compiled);
 		public static Regex R__2EOL = new Regex(__2EOL, RegexOptions.Compiled);
-		public static Regex R__LN = new Regex(@"^\s*(~~.*)?$", RegexOptions.Compiled);
+		public static Regex R__LN = new Regex(@"^\s*(" + rx.LC + @".*)?$", RegexOptions.Compiled);
 		public static Regex R_Empty = new Regex(@"^$", RegexOptions.Compiled);
 
 		// "Core" regexes
 		public const string _D = @"[+\-]?(([1-9][0-9]*\.|[0-9]?\.)([0-9]+([eE][+\-]?[0-9]+)|[0-9]+)|([1-9][0-9]*|0))";
 		public const string _I = @"[+\-]?([1-9][0-9]*|0)";
 		public const string _H = @"[A-F0-9]{8}";
-		// [o]([^oc]|[oo]|[cc])*[c]
+		// _Sbase is        ([^oc~]|oo|cc)
+		// _S overall is    o   _Sbase*   (~(\\~)*_Sbase+)*   (~(\\~)*|)   c
+		//private const string _Sbase = @"([^\" + rx.oD + @"\" + rx.cD + @"~]|\" + rx.oD + @"\" + rx.oD + @"|\" + rx.cD + @"\" + rx.cD + @")"; // enable chained/escaped tildes
+		//public const string _S = @"\" + rx.oD + _Sbase+@"*(~(\\~)*" + _Sbase + @"*)*(~(\\~)*|)\" + rx.cD; // enable chained/escaped tildes
 		public const string _S = @"[\" + rx.oD + @"]([^\" + rx.oD + @"\" + rx.cD + @"]|\" + rx.oD + @"\" + rx.oD + @"|\" + rx.cD + @"\" + rx.cD + @")*[\" + rx.cD + @"]";
 		public const string _L = @"[a-zA-Z_][a-zA-Z0-9_]*"; // literal	// @"(?<l> _____ |"+rx.fieldEmpty+")"
 
@@ -745,7 +847,7 @@ You can code-fold with Notepad++ and metaf. Just place matching braces behind li
 nested folding. (Every string input is always enclosed with both opening and closing braces on its own line, so it doesn't
 trigger folding, and because the folding braces are behind line comments, metaf itself ignores them during conversion.)
 Example:
-	STATE: {Default ~~ { <-- this folds the whole state
+	STATE: {Default} ~~ { <-- this folds the whole state
 		IF: Always
 			DO: None
 		IF: Always ~~ {	  <-- this just folds this piece of the state
@@ -877,7 +979,7 @@ coding your metas (especially the very long VT function names).
 				   Chat - Input: s Text. Input the Text into the ChatWindow. (@t messages, execute vt commands, @e, etc.)
 				  DoAll - Input: p* Actions (none directly). Contains >=0 Action operations inside it, allowing multiple
 						  Actions to be associated with a single Condition.
-			   EmbedNav - Input: s Tag, s Name, optional s Transform. Tag is a just a handle for a nav listed in the file's
+			   EmbedNav - Input: l Tag, s Name, optional s Transform. Tag is a just a handle for a nav listed in the file's
 						  bottom section; Name shows as the embedded nav's name in-game. See EmbedNav in Section 7 for more
 						  on optional Transform input.
 			  CallState - Input: s 'GoTo state name', s 'ReturnTo state name'. Transitions to GoTo state, placing ReturnTo
@@ -1237,7 +1339,7 @@ coding your metas (especially the very long VT function names).
 				containing seven doubles, separated by spaces: {a b c d e f g}, where
 							New			  Old
 							[x]	  [a b 0] [x]   [e]
-							[y] = [c d 0] [y] + {f]
+							[y] = [c d 0] [y] + [f]
 							[z]	  [0 0 1] [z]   [g].
 				Every nav node with coordinates in it gets transformed accordingly during conversion into .met. The default
 				transformation is {1 0 0 1 0 0 0}, which leaves points unchanged.
@@ -2990,7 +3092,7 @@ coding your metas (especially the very long VT function names).
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
-			f.line.Add(new String('\t', this.depth) + this.typeid.ToString() + " " + this._seconds.ToString() + " " + this._spellID.ToString() + " ~~" + OutputText.SpellIdText(this._spellID) );
+			f.line.Add(new String('\t', this.depth) + this.typeid.ToString() + " " + this._seconds.ToString() + " " + this._spellID.ToString() + " " + rx.LC + OutputText.SpellIdText(this._spellID) );
 		}
 	}
 
@@ -3162,7 +3264,7 @@ coding your metas (especially the very long VT function names).
 		override public void ExportToMetAF(ref FileLines f)
 		{
 			string SpellIdsText = OutputText.CommentedAllSpellIdInTextText(this._a_expr);
-			SpellIdsText = (SpellIdsText.Length > 0 ? " ~~" + SpellIdsText : "");
+			SpellIdsText = (SpellIdsText.Length > 0 ? " " + rx.LC + SpellIdsText : "");
 			f.line.Add(new String('\t', this.depth) + this.typeid.ToString() + " " + rx.oD + this._a_expr + rx.cD + SpellIdsText);
 		}
 	}
@@ -3421,7 +3523,7 @@ coding your metas (especially the very long VT function names).
 		override public void ExportToMetAF(ref FileLines f)
 		{
 			string SpellIdsText = OutputText.CommentedAllSpellIdInTextText(this._a_chat);
-			SpellIdsText = (SpellIdsText.Length > 0 ? " ~~" + SpellIdsText : "");
+			SpellIdsText = (SpellIdsText.Length > 0 ? " " + rx.LC + SpellIdsText : "");
 			f.line.Add(new String('\t', this.depth) + this.typeid.ToString() + " " + rx.oD + this._a_chat + rx.cD + SpellIdsText);
 		}
 	}
@@ -3605,7 +3707,7 @@ coding your metas (especially the very long VT function names).
 			try { nNodesInNav = Int32.Parse(f.line[f.L++]); }
 			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 
-			this._tag = this._myMeta.GenerateUniqueNavTag();
+			this._tag = this._myMeta.GenerateUniqueNavTag( new Regex(@"[^a-zA-Z0-9_]").Replace(this._m_name, "_") );
 			this._myMeta.AddToNavsUsed(this._tag, this);
 			nav.tag = this._tag;
 
@@ -3889,7 +3991,7 @@ coding your metas (especially the very long VT function names).
 		override public void ExportToMetAF(ref FileLines f)
 		{
 			string SpellIdsText = OutputText.CommentedAllSpellIdInTextText(this._a_expr);
-			SpellIdsText = (SpellIdsText.Length > 0 ? " ~~" + SpellIdsText : "");
+			SpellIdsText = (SpellIdsText.Length > 0 ? " " + rx.LC + SpellIdsText : "");
 			f.line.Add(new String('\t', this.depth) + this.typeid.ToString() + " " + rx.oD + this._a_expr + rx.cD + SpellIdsText);
 		}
 	}
@@ -3964,7 +4066,7 @@ coding your metas (especially the very long VT function names).
 		override public void ExportToMetAF(ref FileLines f)
 		{
 			string SpellIdsText = OutputText.CommentedAllSpellIdInTextText(this._a_chExpr);
-			SpellIdsText = (SpellIdsText.Length > 0 ? " ~~" + SpellIdsText : "");
+			SpellIdsText = (SpellIdsText.Length > 0 ? " " + rx.LC + SpellIdsText : "");
 			f.line.Add(new String('\t', this.depth) + this.typeid.ToString() + " " + rx.oD + this._a_chExpr + rx.cD + SpellIdsText);
 		}
 	}
@@ -4313,7 +4415,7 @@ coding your metas (especially the very long VT function names).
 		override public void ExportToMetAF(ref FileLines f)
 		{
 			string SpellIdsText = OutputText.CommentedAllSpellIdInTextText(this._a_expr);
-			SpellIdsText = (SpellIdsText.Length > 0 ? " ~~" + SpellIdsText : "");
+			SpellIdsText = (SpellIdsText.Length > 0 ? " " + rx.LC + SpellIdsText : "");
 			f.line.Add(new String('\t', this.depth) + this.typeid.ToString() + " " + rx.oD + this._a_opt + rx.cD + " " + rx.oD + this._a_expr + rx.cD + SpellIdsText);
 		}
 	}
@@ -5039,7 +5141,7 @@ coding your metas (especially the very long VT function names).
 		override public void ExportToMetAF(ref FileLines f)
 		{
 			string SpellIdsText = OutputText.CommentedAllSpellIdInTextText(this._a_chat);
-			SpellIdsText = (SpellIdsText.Length > 0 ? " ~~" + SpellIdsText : "");
+			SpellIdsText = (SpellIdsText.Length > 0 ? " " + rx.LC + SpellIdsText : "");
 			f.line.Add("\t" + ((M_NTypeID)this.typeid).ToString() + " " + this._x.ToString() + " " + this._y.ToString() + " " + this._z.ToString() + " " + rx.oD + this._a_chat + rx.cD + SpellIdsText);
 		}
 	}
@@ -5536,8 +5638,8 @@ coding your metas (especially the very long VT function names).
 		{   // Note: should never be called in the first place if there aren't already known to be nodes in the nav
 			NavNode tmp;
 
-			if( this.tag == null) // This happens when navOnly			
-				this.tag = this._myMeta.GenerateUniqueNavTag();
+			if( this.tag == null) // This happens when navOnly
+				this.tag = this._myMeta.GenerateUniqueNavTag( "" );
 
 			// "uTank" version specifier
 			if (f.line[f.L++].CompareTo("uTank2 NAV 1.2") != 0)
@@ -5667,10 +5769,10 @@ coding your metas (especially the very long VT function names).
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
-			f.line.Add("NAV: " + this.tag + " " + ((M_NavTypeID)this._type).ToString() + " ~~ {");
+			f.line.Add("NAV: " + this.tag + " " + ((M_NavTypeID)this._type).ToString() + " " + rx.LC + " {");
 			foreach (NavNode nn in this._node)
 				nn.ExportToMetAF(ref f);
-			f.line.Add("~~ }");
+			f.line.Add(rx.LC + " }");
 		}
 	}
 
@@ -6037,10 +6139,10 @@ coding your metas (especially the very long VT function names).
 		}
 		override public void ExportToMetAF(ref FileLines f)
 		{
-			f.line.Add( "STATE: " + rx.oD + this._a_name + rx.cD + " ~~ {");
+			f.line.Add( "STATE: " + rx.oD + this._a_name + rx.cD + " " + rx.LC + " {");
 			foreach( Rule r in this._rule)
 				r.ExportToMetAF(ref f);
-			f.line.Add("~~ }");
+			f.line.Add(rx.LC + " }");
 		}
 	}
 	class Meta : ImportExport // line# for msgs good
@@ -6074,9 +6176,10 @@ coding your metas (especially the very long VT function names).
 			this._navOnly = navOnly;
 		}
 
-		public string GenerateUniqueNavTag()
+		public string GenerateUniqueNavTag(string postfix)
 		{
-			return ("nav" + (this._uniqueTagCounter++).ToString());
+			postfix = (postfix.Length > 0 ? "__"+postfix : "");
+			return $"nav{this._uniqueTagCounter++}{postfix}";
 		}
 		public void AddToNavsUsed(string tag, AEmbedNav actionEmbNav)
 		{
@@ -6380,7 +6483,7 @@ coding your metas (especially the very long VT function names).
 				f.line.Add(OutputText.metaHeader);
 				foreach (State s in this._state)
 				{
-					//f.line.Add("~~\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t");
+					//f.line.Add(rx.LC + "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t");
 					s.ExportToMetAF(ref f);
 				}
 				this.CollapseIfDo(ref f);
@@ -6388,7 +6491,7 @@ coding your metas (especially the very long VT function names).
 				if (this._nav.Count > 0)
 				{
 					f.line.Add("");
-					f.line.Add("~~========================= ONLY NAVS APPEAR BELOW THIS LINE =========================~~");
+					f.line.Add(rx.LC + "========================= ONLY NAVS APPEAR BELOW THIS LINE =========================" + rx.LC);
 					f.line.Add("");
 
 					foreach (KeyValuePair<string, Nav> sn in this._nav)
