@@ -3707,7 +3707,7 @@ coding your metas (especially the very long VT function names).
 			try { nNodesInNav = Int32.Parse(f.line[f.L++]); }
 			catch (Exception e) { throw new MyException("[LINE " + (f.L+f.offset).ToString() + "] " + this.GetType().Name.ToString() + ".ImportFromMet: File format error. Expected an integer. [" + e.Message + "]"); }
 
-			this._tag = this._myMeta.GenerateUniqueNavTag( new Regex(@"[^a-zA-Z0-9_]").Replace(this._m_name, "_") );
+			this._tag = this._myMeta.GenerateUniqueNavTag( this._m_name );
 			this._myMeta.AddToNavsUsed(this._tag, this);
 			nav.tag = this._tag;
 
@@ -6178,6 +6178,7 @@ coding your metas (especially the very long VT function names).
 
 		public string GenerateUniqueNavTag(string postfix)
 		{
+			postfix = new Regex(@"[^a-zA-Z0-9_]").Replace(postfix, "_");
 			postfix = (postfix.Length > 0 ? "__"+postfix : "");
 			return $"nav{this._uniqueTagCounter++}{postfix}";
 		}
