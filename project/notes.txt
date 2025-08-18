@@ -1,0 +1,239 @@
+// metaf is a powerful meta/nav editor in an alternate format from that used by the VirindiTank addon to the game Asheron's Call.
+// Copyright (C) 2020  J. Edwards
+//
+// Author: J. Edwards, aka Eskarina of Morningthaw/Coldeve
+// See project for license and info: https://github.com/jjeii/metaf
+
+
+NOTES
+
+----------------------------------------------------------------------------------------------------
+
+IDEAS FOR POTENTIAL IMPROVEMENT
+
+	* ~\~\~... in strings
+	* Multi-line string input parameters
+	* Configuration file/s (pull the file header text, etc., out into config file/s.)
+	* support external nav files in NAV area (on fail, issue warning and load default nav with single 'cht' node announcing the nav load was a failure???)
+	d Improve docs for newbies (clearer drag/drop, metaf isn't an editor, multi-file conversion(?))
+	* Utility Belt functions added to documentation and mark-up XMLs
+	d Support external file references and content for "Create View" XML (auto flattened)
+		- Also for including states/navs defined in external files??
+	* Default "[None]" names for EmbeddedNavs ??
+	* Config file? (in/out folder(s)? overwrite? multi-file? UB function support?)
+
+	* USE: (?) capability (external/library file inclusion---navs, states, whatever)
+		- Track file and line(s)
+		- Remove STATE:-then-NAV: restriction
+	* "Continue" lines (e.g., ending in \ (pre-comment))
+	* Multi-line comments
+	* metaf "meta instructions" (e.g., to load navs into UB lists instead of directly embedding them)
+	* EmbedNav "reverse"
+
+	D Sort of related: "metaf like" Loot Rule Editor?
+
+Also, these functions really ought to be added to UtilityBelt, if possible:
+	* log or ln (and possibly log2/log10, but at least SOME version of log function)
+	* pow
+
+----------------------------------------------------------------------------------------------------
+
+"VT FORMAT" REVERSE ENGINEERING
+
+NOTE: Following are reverse-engineered data inferences for .met (and .nav) file formats. Most of the items have lead-in id codes that identify
+which is which. (See the "Rule" definition near the list top (and "Nav" definition).) These are all defined on a per-file-line basis, where
+every comma-delimited list entry is on its own line in the .met (or .nav) file. (recursive specials: CAll, CAny, ADoAll (and sort of related: CNot))
+----------
+META (NOTE: This starts the file.)
+	"1","CondAct","5","CType","AType","CData","AData","State","n","n","n","n","n",int ruleCount, { iterate ruleCount times: Rule importRule }
+----------
+STATE (NOTE: States are not a separately defined thing in .met format; states are constructed from rules that tie themselves to them.)
+	(N/A)
+----------
+RULE (NOTE: While each Rule is defined by only one Condition and one Action, those may be "wrappers" that contain others inside them; e.g., CAll, CAny, or ADoAll.)
+	"i",int conditionID,"i",int actionID,Condition importCondition,Action importAction,"s",string stateName
+----------
+CONDITIONS (NOTE: Which Condition to import is determined by which conditionID was specified; e.g., see Rule definition, or CAll, CAny, and CNot.)
+								//Unassigned with id=-1
+	               CNever (id=0): "i","0"
+	              CAlways (id=1): "i","0"
+	                 CAll (id=2): "TABLE","2","K","V","n","n",int count, { iterate count times: "i", int conditionID, Condition recurseImportCondition }
+	                 CAny (id=3): "TABLE","2","K","V","n","n",int count, { iterate count times: "i", int conditionID, Condition recurseImportCondition }
+	           CChatMatch (id=4): "s",regexString chat
+	         CMainSlotsLE (id=5): "i",int slots
+	       CSecsInStateGE (id=6): "i",int seconds
+	            CNavEmpty (id=7): "i","0"
+	               CDeath (id=8): "i","0"
+	          CVendorOpen (id=9): "i","0"
+	       CVendorClosed (id=10): "i","0"
+	        CItemCountLE (id=11): "TABLE","2","k","v","n","n","2","s","n","s",string itemName,"s","c","i",int itemCount
+	        CItemCountGE (id=12): "TABLE","2","k","v","n","n","2","s","n","s",string itemName,"s","c","i",int itemCount
+	    CMobsInDist_Name (id=13): "TABLE","2","k","v","n","n","3","s","n","s",string regexString,"s","c","i",int count,"s","r","d",double range
+	CMobsInDist_Priority (id=14): "TABLE","2","k","v","n","n","3","s","p","i",int priority,"s","c","i",int count,"s","r","d",double range
+	         CNeedToBuff (id=15): "i","0"
+	       CNoMobsInDist (id=16): "TABLE","2","k","v","n","n","1","s","r","d",double range
+	             CBlockE (id=17): "i",int block
+	              CCellE (id=18): "i",int cell
+	         CIntoPortal (id=19): "i","0"
+	         CExitPortal (id=20): "i","0"
+	                CNot (id=21): "TABLE","2","K","V","n","n",int countIgnored (== 1),"i",int conditionID,Condition importCondition
+	     CPSecsInStateGE (id=22): "i",int seconds
+	      CSecsOnSpellGE (id=23): "TABLE","2","k","v","n","n","2","s","sid","i",int spellID,"s","sec","i",int seconds
+	        CBuPercentGE (id=24): "i",int burden
+	        CDistToRteGE (id=25): "TABLE","2","k","v","n","n","1","s","dist","d",double distance
+	               CExpr (id=26): "TABLE","2","k","v","n","n","1","s","e","s",string expression
+								//ClientDialogPopup with id=27: some type from the past? it's not in VT now, and I didn't find any files with it, nor data on it, other than it supposedly existing at some point (maybe?).
+	        CChatCapture (id=28): "TABLE","2","k","v","n","n","2","s","p","s",regexString pattern,"s","c","s",string colorIdList
+----------
+ACTIONS (NOTE: Which Action to import is determined by which actionID was specified; e.g., see Rule definition, or ADoAll.)
+		(NOTE: ACreateView does not have a newline at the XML parameter's end; it is the only such case of this; the next parameter ("s" and stateName) begins immediately after the XML ends, on the same line.)
+							//Unassigned with id=-1
+	            ANone (id=0): "i","0"
+	        ASetState (id=1): "s",string state
+	            AChat (id=2): "s",string chat
+	           ADoAll (id=3): "TABLE","2","K","V","n","n",int count, { iterate count times: "i", int actionID, Action recurseImportAction }
+	        AEmbedNav (id=4): "ba",int bytesInNavInclNewlines,string navInGameName,int navNodeCount, {if bytesInNavInclNewlines>5 then importNav}
+	       ACallState (id=5): "TABLE","2","k","v","n","n","2","s","st","s",string toState,"s","ret","s",string retState
+	          AReturn (id=6): "i","0"
+	          ADoExpr (id=7): "TABLE","2","k","v","n","n","1","s","e","s",string expression
+	        AChatExpr (id=8): "TABLE","2","k","v","n","n","1","s","e","s",string expression
+	     ASetWatchdog (id=9): "TABLE","2","k","v","n","n","3","s","s","s",string state,"s","r","d",double range,"s","t","d",double time
+	  AClearWatchdog (id=10): "TABLE","2","k","v","n","n","0"
+	         AGetOpt (id=11): "TABLE","2","k","v","n","n","2","s","o","s",string opt,"s","v","s",string val
+	         ASetOpt (id=12): "TABLE","2","k","v","n","n","2","s","o","s",string opt,"s","v","s",string expression
+	     ACreateView (id=13): "TABLE","2","k","v","n","n","2","s","n","s",string view,"s","x","ba",int byteCountOfXML,string xml
+	    ADestroyView (id=14): "TABLE","2","k","v","n","n","1","s","n","s",string view
+	ADestroyAllViews (id=15): "TABLE","2","k","v","n","n","0"
+----------
+NAV (NOTE: This format applies in both the .nav file type and in embedded navs inside metas.)
+	"uTank2 NAV 1.2", int navTypeID, {if navTypeID is Follow then importAndWeAreDone, else { int nodesInNav, {iterate nodesInNav times: int navNodeID, NavNode importNode } } }
+----------
+NAV NODE TYPES (NOTE: Which nav node to import is determined by which navNodeID was specified; see NAV definition above.)
+			   (NOTE: The NPortal nav node type is deprecated in VirindiTank.)
+			   (NOTE: NFollow is not actually a nav node type, but a nav type (id=3; others are Circular(1), Linear(2), & Once(4)); *MY* internal nav node type for it is id=-2. An NFollow nav specifies a target's name and wid, and ends.)
+	NFollow (id=see note): string targetName, int targetWID
+	        NPoint (id=0): double x, double y, double z, "0"
+	       NPortal (id=1): double x, double y, double z, "0", int wid
+	       NRecall (id=2): double x, double y, double z, "0", int spellId
+	        NPause (id=3): double x, double y, double z, "0", double pauseSeconds
+	         NChat (id=4): double x, double y, double z, "0", string chat
+	   NOpenVendor (id=5): double x, double y, double z, "0", int vendorWID, string vendorName
+	   NPortal_NPC (id=6): double x, double y, double z, "0", string objName, int objClass (should be 14 (portal) or 37 (npc) or 10 (container)), "True", double objx, double objy, double objz
+	      NNPCTalk (id=7): double x, double y, double z, "0", string objName, int objClass (should be 37 (npc)), "True", double objx, double objy, double objz
+	   NCheckpoint (id=8): double x, double y, double z, "0"
+	         NJump (id=9): double x, double y, double z, "0", double headingDegrees, string doHoldShift (always "True" or "False"), double delayMS
+						 //Other with id=99 is reputedly defined in the VirindiTank source code
+
+----------------------
+
+Note that during my research, I found this listed somewhere as a Condition enum, but it's not on any in-game menus, so I guess it's something deprecated?
+CTypeID.ClientDialogPopup = 27
+
+Additionally, this is defined in VT's source (as a NavNode enum).
+NTypeID.Other = 99
+
+----------------------------------------------------------------------------------------------------
+
+PROJECT ORGANIZATION
+
+/project/
+├── metaf.csproj
+├── notes.txt
+├── Program.cs
+├── Bundle/
+│   ├── _OverwriteDest.bat
+│   ├── EmbedNavTransformationCalculator.html
+│   ├── metaf.xml
+│   ├── metaf_dark.xml
+│   ├── metafREADME.af
+│   ├── metafReference.af
+│   └── metnav.pdf
+├── Core/
+│   ├── CmdLnParms.cs
+│   ├── Enums.cs
+│   ├── FileLines.cs
+│   ├── FileOutputStrings.cs
+│   ├── ImportExport.cs
+│   ├── MyException.cs
+│   └── RegexPlus.cs
+├── Model/
+│   ├── Meta.cs
+│   ├── Rule.cs
+│   └── State.cs
+├── Navigation/
+│   ├── Nav.cs
+│   ├── NavNode.cs
+│   └── NavNodes/
+│       ├── NChat.cs
+│       ├── NCheckpoint.cs
+│       ├── NFollow.cs
+│       ├── NJump.cs
+│       ├── NNPCTalk.cs
+│       ├── NOpenVendor.cs
+│       ├── NPause.cs
+│       ├── NPoint.cs
+│       ├── NPortal.cs
+│       ├── NPortal_NPC.cs
+│       ├── NRecall.cs
+│       └── NUnassigned.cs
+└── Operations/
+    ├── Action.cs
+    ├── Condition.cs
+    ├── Actions/
+    │   ├── ACallState.cs
+    │   ├── AChat.cs
+    │   ├── AChatExpr.cs
+    │   ├── AClearWatchdog.cs
+    │   ├── ACreateView.cs
+    │   ├── ADestroyAllViews.cs
+    │   ├── ADestroyView.cs
+    │   ├── ADoAll.cs
+    │   ├── ADoExpr.cs
+    │   ├── AEmbedNav.cs
+    │   ├── AGetOpt.cs
+    │   ├── ANone.cs
+    │   ├── AReturn.cs
+    │   ├── ASetOpt.cs
+    │   ├── ASetState.cs
+    │   ├── ASetWatchdog.cs
+    │   └── AUnassigned.cs
+    └── Conditions/
+        ├── CAll.cs
+        ├── CAlways.cs
+        ├── CAny.cs
+        ├── CBlockE.cs
+        ├── CBuPercentGE.cs
+        ├── CCellE.cs
+        ├── CChatCapture.cs
+        ├── CChatMatch.cs
+        ├── CDeath.cs
+        ├── CDistToRteGE.cs
+        ├── CExitPortal.cs
+        ├── CExpr.cs
+        ├── CIntoPortal.cs
+        ├── CItemCountGE.cs
+        ├── CItemCountLE.cs
+        ├── CMainSlotsLE.cs
+        ├── CMobsInDist_Name.cs
+        ├── CMobsInDist_Priority.cs
+        ├── CNavEmpty.cs
+        ├── CNeedToBuff.cs
+        ├── CNever.cs
+        ├── CNoMobsInDist.cs
+        ├── CNot.cs
+        ├── CPSecsInStateGE.cs
+        ├── CSecsInStateGE.cs
+        ├── CSecsOnSpellGE.cs
+        ├── CUnassigned.cs
+        ├── CVendorClosed.cs
+        └── CVendorOpen.cs
+
+----------------------------------------------------------------------------------------------------
+
+PROJECT CONFIGURATION
+
+Other potential settings to consider for the metaf.csproj file?
+	<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishTrimmed>true</PublishTrimmed>
+    <SelfContained>true</SelfContained>
+	<PublishSingleFile>true</PublishSingleFile>

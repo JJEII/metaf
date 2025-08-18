@@ -1,0 +1,64 @@
+<NotepadPlus>
+    <UserLang name="metaf" ext="af" udlVersion="2.1">
+        <Settings>
+            <Global caseIgnored="no" allowFoldOfComments="no" foldCompact="no" forcePureLC="0" decimalSeparator="0" />
+            <Prefix Keywords1="no" Keywords2="no" Keywords3="no" Keywords4="no" Keywords5="no" Keywords6="no" Keywords7="no" Keywords8="no" />
+        </Settings>
+        <KeywordLists>
+            <Keywords name="Comments">00~~ 01 02 03 04</Keywords>
+            <Keywords name="Numbers, prefix1"></Keywords>
+            <Keywords name="Numbers, prefix2"></Keywords>
+            <Keywords name="Numbers, extras1"></Keywords>
+            <Keywords name="Numbers, extras2"></Keywords>
+            <Keywords name="Numbers, suffix1"></Keywords>
+            <Keywords name="Numbers, suffix2"></Keywords>
+            <Keywords name="Numbers, range"></Keywords>
+            <Keywords name="Operators1">!= == &gt;= &lt;= &amp;&amp; || \ ( ) % / * + - # &gt; &lt; ^ | . $ , [ ] { } ;</Keywords>
+            <Keywords name="Operators2"></Keywords>
+            <Keywords name="Folders in code1, open"></Keywords>
+            <Keywords name="Folders in code1, middle"></Keywords>
+            <Keywords name="Folders in code1, close"></Keywords>
+            <Keywords name="Folders in code2, open"></Keywords>
+            <Keywords name="Folders in code2, middle"></Keywords>
+            <Keywords name="Folders in code2, close"></Keywords>
+            <Keywords name="Folders in comment, open">{</Keywords>
+            <Keywords name="Folders in comment, middle"></Keywords>
+            <Keywords name="Folders in comment, close">}</Keywords>
+            <Keywords name="Keywords1">All Always Any BlockE BuPercentGE CellE ChatCapture ChatMatch Death DistToRteGE ExitPortal Expr IntoPortal ItemCountGE ItemCountLE MainSlotsLE MobsInDist_Name MobsInDist_Priority NavEmpty NeedToBuff Never NoMobsInDist Not PSecsInStateGE SecsInStateGE SecsOnSpellGE VendorClosed VendorOpen</Keywords>
+            <Keywords name="Keywords2">CallState Chat ChatExpr ClearWatchdog CreateView DestroyAllViews DestroyView DoAll DoExpr EmbedNav GetOpt None Return SetOpt SetState SetWatchdog</Keywords>
+            <Keywords name="Keywords3">abs acos actiontryapplyitem actiontrycastbyid actiontrycastbyidontarget actiontryequipanywand actiontrygiveitem actiontrygiveprofile actiontryselect actiontryuseitem asin atan atan2 ceiling chatbox chatboxpaste chr clearallgvars clearallpvars clearallvars cleargvar clearmotion clearpvar clearvar cnumber componentdata componentname coordinatedistanceflat coordinatedistancewithz coordinategetns coordinategetwe coordinategetz coordinateparse coordinatetostring cos cosh cstr cstrf delayexec dictadditem dictclear dictcopy dictcreate dictgetitem dicthaskey dictkeys dictremovekey dictsize dictvalues echo exec floor getaccounthash getbusystate getcancastspell_buff getcancastspell_hunt getcharattribute_base getcharattribute_buffed getcharboolprop getcharburden getchardoubleprop getcharintprop getcharquadprop getcharskill_base getcharskill_buffed getcharskill_traininglevel getcharstringprop getcharvital_base getcharvital_buffedmax getcharvital_current getcombatstate getcontaineritemcount getdatetimelocal getdatetimeutc getequippedweapontype getfellowid getfellowids getfellowname getfellownames getfellowshipcanrecruit getfellowshipcount getfellowshipisfull getfellowshipisleader getfellowshipisopen getfellowshipleaderid getfellowshiplocked getfellowshipname getfellowshipstatus getfreecontainerslots getfreeitemslots getgameday getgamehour getgamehourname getgamemonth getgamemonthname getgameticks getgameyear getgvar getheading getheadingto getinventorycountbytemplatetype getisday getisnight getisspellknown getitemcountininventorybyname getitemcountininventorybynamerx getknownspells getminutesuntilday getminutesuntilnight getmotion getobjectinternaltype getplayercoordinates getplayerlandblock getplayerlandcell getpvar getquestktprogress getquestktrequired getqueststatus getregexmatch getspellexpiration getspellexpirationbyname getunixtime getvar getworldname hexstr ifthen iif isfalse isportaling isrefreshingquests istrue listadd listclear listcontains listcopy listcount listcreate listfilter listfromrange listgetitem listindexof listinsert listlastindexof listmap listpop listreduce listremove listremoveat listreverse listsort netclients ord randint round setcombatstate setgvar setmotion setpvar setvar sin sinh spelldata spellname sqrt statushud statushudcolored stopwatchcreate stopwatchelapsedseconds stopwatchstart stopwatchstop strlen tan tanh testgvar testpvar testquestflag testvar tostring touchgvar touchpvar touchvar uboptget uboptset uigetcontrol uisetlabel uisetvisible uiviewexists uiviewvisible ustadd ustopen ustsalvage vitae vtgetmetastate vtgetsetting vtsetmetastate vtsetsetting wobjectfindall wobjectfindallbycontainer wobjectfindallbynamerx wobjectfindallbyobjectclass wobjectfindallbytemplatetype wobjectfindallinventory wobjectfindallinventorybynamerx wobjectfindallinventorybyobjectclass wobjectfindallinventorybytemplatetype wobjectfindalllandscape wobjectfindalllandscapebynamerx wobjectfindalllandscapebyobjectclass wobjectfindalllandscapebytemplatetype wobjectfindbyid wobjectfindininventorybyname wobjectfindininventorybynamerx wobjectfindininventorybytemplatetype wobjectfindnearestbynameandobjectclass wobjectfindnearestbyobjectclass wobjectfindnearestbytemplatetype wobjectfindnearestdoor wobjectfindnearestmonster wobjectgetactivespellids wobjectgetboolprop wobjectgetdoubleprop wobjectgethealth wobjectgetid wobjectgetintprop wobjectgetisdooropen wobjectgetname wobjectgetobjectclass wobjectgetopencontainer wobjectgetphysicscoordinates wobjectgetplayer wobjectgetselection wobjectgetspellids wobjectgetstringprop wobjectgettemplatetype wobjecthasdata wobjectisvalid wobjectlastidtime wobjectrequestdata</Keywords>
+            <Keywords name="Keywords4">STATE:&#x000D;&#x000A;TIP: KEY: WARNING:&#x000D;&#x000A;prt</Keywords>
+            <Keywords name="Keywords5">IF:</Keywords>
+            <Keywords name="Keywords6">DO:</Keywords>
+            <Keywords name="Keywords7">NAV: chk cht flw jmp pau ptl rcl tlk vnd&#x000D;&#x000A;NOTE:</Keywords>
+            <Keywords name="Keywords8">circular follow linear once pnt</Keywords>
+            <Keywords name="Delimiters">00` 01 02` 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23</Keywords>
+        </KeywordLists>
+        <Styles>
+            <WordsStyle name="DEFAULT" fgColor="A00000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="COMMENTS" fgColor="000000" bgColor="E0E0E0" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="LINE COMMENTS" fgColor="808080" bgColor="E6E6E6" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="NUMBERS" fgColor="FF80FF" bgColor="FFFFFF" fontName="" fontStyle="1" nesting="0" />
+            <WordsStyle name="KEYWORDS1" fgColor="0090FF" bgColor="FFFFFF" fontName="" fontStyle="1" nesting="0" />
+            <WordsStyle name="KEYWORDS2" fgColor="009500" bgColor="FFFFFF" fontName="" fontStyle="1" nesting="0" />
+            <WordsStyle name="KEYWORDS3" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="1" nesting="0" />
+            <WordsStyle name="KEYWORDS4" fgColor="000000" bgColor="FFFF80" fontName="" fontStyle="1" nesting="0" />
+            <WordsStyle name="KEYWORDS5" fgColor="000000" bgColor="BEE6FF" fontName="" fontStyle="1" nesting="0" />
+            <WordsStyle name="KEYWORDS6" fgColor="000000" bgColor="A0F0A0" fontName="" fontStyle="1" nesting="0" />
+            <WordsStyle name="KEYWORDS7" fgColor="BF00BF" bgColor="FFD7FF" fontName="" fontStyle="1" nesting="0" />
+            <WordsStyle name="KEYWORDS8" fgColor="E592E5" bgColor="FFF6FF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="OPERATORS" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="1" nesting="0" />
+            <WordsStyle name="FOLDER IN CODE1" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="FOLDER IN CODE2" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="FOLDER IN COMMENT" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS1" fgColor="BF7300" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS2" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS3" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS4" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS5" fgColor="000000" bgColor="FFFFFF" fontName="" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS6" fgColor="000000" bgColor="FFFFFF" fontName="no" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS7" fgColor="000000" bgColor="FFFFFF" fontName="lls\Skills.js" fontStyle="0" nesting="0" />
+            <WordsStyle name="DELIMITERS8" fgColor="000000" bgColor="FFFFFF" fontName="ode\ac_xp.html" fontStyle="0" nesting="0" />
+        </Styles>
+    </UserLang>
+</NotepadPlus>

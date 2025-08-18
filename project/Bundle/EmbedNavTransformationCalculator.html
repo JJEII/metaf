@@ -1,0 +1,321 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitiona1.dtd">
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<title>metaf Transformation Calculator</title>
+</head>
+<style>
+.bottomgap {
+	padding-bottom: 15px;
+}
+.ansPreLbl {
+	font-family: courier;
+	font-size: 10pt;
+	color: #888888;
+}
+.ansPre {
+	color: #66BB66;
+}
+.ans {
+	color: #008800;
+	background-color: #AAFFAA;  /* #D0FFD8; // ECFFF0 */
+	font-family: courier;
+	font-size: 10pt;
+	font-weight: bold;
+	border: 0px solid #AAFFAA;
+	margin: 5px 0px 0px 0px;
+	padding: 5px 0px;
+}
+</style>
+<body>
+<br/>
+<table style="background-color: #D0F0FF; border: 1px solid #4080BB;"><tr><td>
+<table border="0" style="margin: 0px; padding: 2px;">
+<tr><td></td><td>
+	<table border="0" style="margin: 0px; padding: 0px; width: 700px;">
+	<tr><td style="font-size: 18pt; font-weight: bold; text-align: left; vertical-align: top;">metaf Transformation Calculator<br />
+	<span style="color: #888888; font-size: 9pt; text-align: left;">by Eskarina of Morningthaw/Coldeve</span></td>
+	<td style="color: #000000; text-align: right;">&#10140; Assists in the use of <b>EmbedNav</b>'s <br />optional third parameter (Transform)</td></tr>
+	</table>
+</td></tr>
+<tr><td></td><td style="color: #008800; padding: 10px 2px 10px 2px;">Copy/paste the <u>entire</u> @loc line into each text box, to calculate transformation parameters from 'From' to 'To'.<br />Note: Accounts for rotation, reflection, and translation but not scaling or skew. (Assumes heading around z.)</td></tr>
+<tr><td style="width: 50px; text-align: right; font-weight: bold;">From:</td><td><input type="text" id="fromLoc" value="Your location is: 0xC6A80015 [51.905819 110.843018 42.005001] 0.965926 0.000000 0.000000 -0.258819" style="width: 700px;" /></td></tr>
+<tr><td style="width: 50px; text-align: right; font-weight: bold;" class="bottomgap"></td><td style="font-size: 10pt;" class="bottomgap"><b>Mirror?</b>&nbsp;
+<input type="radio" id="flipNo" name="fromFlip" value="no" checked><label for="flipNo">No</label>&nbsp;
+<input type="radio" id="flipYes" name="fromFlip" value="yes"><label for="flipYes">Yes</label>
+</td></tr>
+<tr><td style="width: 50px; text-align: right; font-weight: bold;" class="bottomgap">To:</td><td class="bottomgap"><input type="text" id="toLoc" value="Your location is: 0xC6A80016 [57.829411 128.019516 42.005001] 0.707107 0.000000 0.000000 -0.707107"  style="width: 700px;" /></td></tr>
+<tr><td></td><td><button onclick="calc()">Calculate Transformation Parameters</button></td></tr>
+<tr><td colspan="2">&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td><div id="result" style="padding: 4px;"></div></td></tr>
+</table>
+</td></tr></table>
+<br />
+<br />
+<table width="778" style="background-color: #FFFFD0; border: 1px solid #BBBB40;"><tr><td>
+<table border="0" style="margin: 0px; padding: 2px;">
+<tr style="font-size: 14pt; font-weight: bold;"><td width="50px;">&nbsp;</td><td>Angle (&deg;)</td><td>&nbsp;</td><td>Quaternion&nbsp;<span style="color: #888888; font-size: 9pt; text-align: left;">(assumes around z-axis)</span></td></tr>
+<tr><td>&nbsp;</td><td><input type="text" id="deg" value="0" style="width: 100px;" onkeyup="if (event.keyCode == 13) updateQuat();" /> &deg;</td><td style="font-size: 14pt; font-weight: bold;">&harr;</td><td><input type="text" id="quat" value="1 0 0 0" style="width: 400px;" onkeyup="if (event.keyCode == 13) updateDeg();" /></td></tr>
+<tr><td>&nbsp;</td><td colspan="3" style="color: #888888; font-size: 9pt; text-align: left;">When done changing either entry, press ENTER to recompute.</td></tr>
+<tr><td colspan="4">&nbsp;</td></tr>
+<tr><td>&nbsp;</td><td colspan="3"><div id="degQuatMsg" style="padding: 4px;"></div></td></tr>
+</table>
+</td></tr></table>
+</body>
+<script>
+/*
+Test values:
+Monroe1: Your location is: 0xC6A9001C [79.371666 93.975357 42.005001] 0.983156 0.000000 0.000000 -0.182766
+Monroe2: Your location is: 0xC6A9001C [73.297905 89.524635 42.005001] 0.950424 0.000000 0.000000 0.310958
+Hive 40: Your location is: 0x6346036E [140.042007 -182.837006 0.005000] 1.000000 0.000000 0.000000 0.000000
+Hive 60: Your location is: 0x6347036E [140.042007 -182.837006 0.005000] 1.000000 0.000000 0.000000 0.000000
+Hive 90: Your location is: 0x6145036E [140.042007 -182.837006 0.005000] 1.000000 0.000000 0.000000 0.000000
+Hive 120: Your location is: 0x6146036E [140.042007 -182.837006 0.005000] 1.000000 0.000000 0.000000 0.000000
+*/
+
+const C = 204 - 0.1; // width of map in compass coordinates
+const L = 255 - 1.0/8; // width of map in landblock coordinates
+const eps = 0.00001; // episilon: required difference between 'from' and 'to' @loc points to count as "different enough"
+const aeps = 0.00001; // same as eps, but angular difference threshold between 'from' and 'to'
+const roundPoint = 10e12; // round results to the nearest 12th digit after the decimal point (helps with fudging to zero and stuff)
+
+// regular expression patterns to match the loc, deg, and quat fields
+const locRE = /.*0x(?<XX>[0-9A-F]{2})(?<YY>[0-9A-F]{2})(?<TT>[0-9A-F]{2})(?<CC>[0-9A-F]{2})\s+\[?\s*(?<XL>\-?[0-9]+\.[0-9]+|\-?[0-9]+)\s+(?<YL>\-?[0-9]+\.[0-9]+|\-?[0-9]+)\s+(?<ZL>\-?[0-9]+\.[0-9]+|\-?[0-9]+)\s*\]?\s+(?<QW>\-?[0-9]+\.[0-9]+|\-?[0-9]+)\s+(?<QI>\-?[0-9]+\.[0-9]+|\-?[0-9]+)\s+(?<QJ>\-?[0-9]+\.[0-9]+|\-?[0-9]+)\s+(?<QK>\-?[0-9]+\.[0-9]+|\-?[0-9]+)\s*$/;
+const degRE = /\s*(?<d>\-?[0-9]+\.[0-9]+|\-?[0-9]+)\s*/;
+const quatRE = /\s*(?<w>\-?[0-9]+\.[0-9]+|\-?[0-9]+)(\s*,\s*|\s+)(?<i>\-?[0-9]+\.[0-9]+|\-?[0-9]+)(\s*,\s*|\s+)(?<j>\-?[0-9]+\.[0-9]+|\-?[0-9]+)(\s*,\s*|\s+)(?<k>\-?[0-9]+\.[0-9]+|\-?[0-9]+)\s*/;
+
+// multiply 3x3 matrix a by 3x3 matrix b
+// [a00 a01 a02]   [b00 b01 b02]
+// [a10 a11 a12] * [b10 b11 b12]
+// [a20 a21 a22]   [b20 b21 b22]
+function _mul(a,b) {
+	return [
+		[a[0][0]*b[0][0]+a[0][1]*b[1][0]+a[0][2]*b[2][0], a[0][0]*b[0][1]+a[0][1]*b[1][1]+a[0][2]*b[2][1], a[0][0]*b[0][2]+a[0][1]*b[1][2]+a[0][2]*b[2][2]],
+		[a[1][0]*b[0][0]+a[1][1]*b[1][0]+a[1][2]*b[2][0], a[1][0]*b[0][1]+a[1][1]*b[1][1]+a[1][2]*b[2][1], a[1][0]*b[0][2]+a[1][1]*b[1][2]+a[1][2]*b[2][2]],
+		[a[2][0]*b[0][0]+a[2][1]*b[1][0]+a[2][2]*b[2][0], a[2][0]*b[0][1]+a[2][1]*b[1][1]+a[2][2]*b[2][1], a[2][0]*b[0][2]+a[2][1]*b[1][2]+a[2][2]*b[2][2]]
+	];
+}
+// multiply a chain of 3x3 matrices using the implicit 'arguments' variable to iterate through them
+function mulM() {
+	if( arguments.length < 2 )
+		throw 'mulM requires at least two arguments.';
+	let m = arguments[0];
+	for(let i=1;i<arguments.length;i++)
+		m = _mul(m,arguments[i]);
+	return m;
+}
+
+function rotM(a) { // rotate by radian-angle a (around z)							// [ cos(a)  -sin(a) 0 ]
+	return [ [Math.cos(a),-Math.sin(a),0], [Math.sin(a),Math.cos(a),0], [0,0,1] ];	// [ sin(a)   cos(a) 0 ]
+}																					// [   0        0    1 ]
+
+function trM(x,y) { // translate by x,y 	// [ 1 0 x ]
+	return [ [1,0,x], [0,1,y], [0,0,1] ];	// [ 0 1 y ]
+}											// [ 0 0 1 ]
+
+function hflipM() {	// flip x (across y)	// [-1 0 0 ]
+	return [ [-1,0,0], [0,1,0], [0,0,1] ];	// [ 0 1 0 ]
+}											// [ 0 0 1 ]
+
+function updateDeg() {
+	let d;
+	let errMsg = "Please provide valid quaternion inputs."
+	let quat = document.getElementById("quat").value.trim();
+
+	let q = quatRE.exec(quat);
+	if( q !== null ) {
+		q = q.groups;
+		for(let k in q) {
+			q[k] = parseFloat(q[k]);
+		}
+		if( q.w <= 1.0 && q.w >= -1.0 ) { //eps > Math.sqrt(q.w*q.w+q.i*q.i+q.j*q.j+q.k*q.k) ) {
+			q.i = 0.0;
+			q.j = 0.0;
+			let s = Math.sign(q.k);
+			if (s === -0.0)
+				s = -1;
+			else if(s === 0.0)
+				s = 1;
+			q.k = s * Math.sqrt(1.0-q.w*q.w);
+			q.w = Math.round(q.w*roundPoint)/roundPoint;
+			q.k = Math.round(q.k*roundPoint)/roundPoint;
+			d = -2*s*Math.acos(q.w)*180.0/Math.PI;
+			document.getElementById("deg").value = d.toString().slice(0,12);
+			document.getElementById("quat").value = q.w.toString().slice(0,12)+' '+q.i.toString().slice(0,12)+' '+q.j.toString().slice(0,12)+' '+q.k.toString().slice(0,12);
+			return;
+		}
+		else {
+			errMsg = "Quaternion inputs must be normalized.";
+		}
+	}
+
+	// output error message feedback
+	document.getElementById("degQuatMsg").style.border = "1px solid red";
+	document.getElementById("degQuatMsg").style.backgroundColor = "#FFF0F0";
+	document.getElementById("degQuatMsg").innerHTML = "<span style='color: red; font-size: 12pt;'>" + errMsg + "</span>";
+}
+
+function updateQuat() {
+	let errMsg = "Please provide valid degree input."
+	let deg = document.getElementById("deg").value.trim();
+
+	let d = degRE.exec(deg);
+	if( d !== null ) {
+		let q = { w: 1, i: 0, j: 0, k: 0 };
+		d = parseFloat(d.groups['d']);
+		q.w = Math.cos( -0.5*d*Math.PI/180.0 ); // quaternions map to half-angles (0.5*), and AC angles are reverse-direction (-)
+		q.i = 0.0;
+		q.j = 0.0;
+		q.k = Math.sin( -0.5*d*Math.PI/180.0 );
+		q.w = Math.round(q.w*roundPoint)/roundPoint;
+		q.k = Math.round(q.k*roundPoint)/roundPoint;
+		document.getElementById("quat").value = q.w.toString().slice(0,12)+' '+q.i.toString().slice(0,12)+' '+q.j.toString().slice(0,12)+' '+q.k.toString().slice(0,12);
+		return;
+	}
+
+	// output error message feedback
+	document.getElementById("degQuatMsg").style.border = "1px solid red";
+	document.getElementById("degQuatMsg").style.backgroundColor = "#FFF0F0";
+	document.getElementById("degQuatMsg").innerHTML = "<span style='color: red; font-size: 12pt;'>" + errMsg + "</span>";
+}
+
+// copy transformation parameters
+function _copyParms(p) {
+	const el = document.createElement('textarea');
+	el.value = p;
+	el.setAttribute('readonly', '');
+	el.style.position = 'absolute';
+	el.style.left = '-9999px';
+	document.body.appendChild(el);
+	el.select();
+	document.execCommand('copy');
+	document.body.removeChild(el);
+};
+
+function calc() {
+	// set-up initial values
+	let errMsg = "Please provide valid @loc inputs."
+	let flipText = "";
+	let xf = {};
+	document.getElementById("result").style.border = "0px solid black";
+	document.getElementById("result").innerHTML = "";
+
+	// grab the text-box inputs
+	let fromL = document.getElementById("fromLoc").value.trim();
+	let toL = document.getElementById("toLoc").value.trim();
+
+	// test if they're in the right format, using a regular expression pattern
+	let t = locRE.exec(toL);
+	let f = locRE.exec(fromL);
+
+	// if format is good...
+	if( f !== null && t !== null ) {
+
+		// grab named groups from inside matched-pattern data
+		t = t.groups;
+		f = f.groups;
+
+		// convert regex matches from strings into ints and floats
+		for(let k in t) {
+			if(['XX','YY','TT','CC'].includes(k))
+				t[k] = parseInt(t[k],16);
+			else
+				t[k] = parseFloat(t[k]);
+		}
+		for(let k in f) {
+			if(['XX','YY','TT','CC'].includes(k))
+				f[k] = parseInt(f[k],16);
+			else
+				f[k] = parseFloat(f[k]);
+		}
+
+		// compute compass coordinates for 'from' and 'to'
+		f.WE = C*((f.XX+f.XL/192.0)/L - 0.5); // x = C*( (XX+XL/192.0)/L - 0.5 );
+		f.SN = C*((f.YY+f.YL/192.0)/L - 0.5); // y = C*( (YY+YL/192.0)/L - 0.5 );
+		f.DU = f.ZL/240.0;
+		t.WE = C*((t.XX+t.XL/192.0)/L - 0.5);
+		t.SN = C*((t.YY+t.YL/192.0)/L - 0.5);
+		t.DU = t.ZL/240.0;
+
+		// compute heading angle (in radians), away from straight North (+ is CW; - is CCW), assuming around "vertical z-axis"
+		if( Math.abs(t.QW) <= 1.0 && Math.abs(f.QW) <= 1.0 ) { // enforce -1 <= QW <= 1
+			t.HD = -2*Math.sign(t.QK)*Math.acos(t.QW);
+			f.HD = -2*Math.sign(f.QK)*Math.acos(f.QW);
+
+			// if the points and headings aren't "the same" (within epsilon values)...
+			if( Math.abs(t.SN-f.SN)>eps || Math.abs(t.WE-f.WE)>eps || Math.abs(t.HD-f.HD)>aeps || flip!=="no" ) {
+				// grab whether or not to compute a mirror into the transformation
+				const flip = Array.from( document.getElementsByName("fromFlip") )
+								  .find(radio => radio.checked).value;
+
+				let theta, tr;//, h;
+				switch( flip ) {
+					case "no":
+						theta = -(t.HD - f.HD); // math angles go opposite dir to AC angles (-)
+						tr = mulM( trM(t.WE,t.SN), rotM(theta), trM(-f.WE,-f.SN) );
+						break;
+					case "yes":
+						theta = -(t.HD - (-f.HD));  // math angles go opposite dir to AC angles (-); flip angle west/east (-f.HD)
+						tr = mulM( trM(t.WE,t.SN), rotM(theta), hflipM(), trM(-f.WE,-f.SN) ); // include mul by negX matrix
+						flipText = '&nbsp;<span class="ansPreLbl">mirrored</span>';
+						break;
+				}
+				xf.a = tr[0][0];
+				xf.b = tr[0][1];
+				xf.c = tr[1][0];
+				xf.d = tr[1][1];
+				xf.e = tr[0][2];
+				xf.f = tr[1][2];
+				xf.g = t.DU-f.DU;
+
+				// round to nearest 12th-digit-after-the-decimal-point
+				for(let x in xf)
+					xf[x] = Math.round(xf[x]*roundPoint)/roundPoint;
+
+				// convert transformation parameters into a string
+				let r = "{ ";
+				for(let x in xf)
+					r += xf[x].toString() + " ";
+				r += "}";
+
+				// put the result string into prettily-formatted output
+				document.getElementById("result").style.border = "1px solid #008800";
+				document.getElementById("result").style.backgroundColor = "#ECFFF0";
+				// FROM: line
+				let htmlStr = '<div>'
+					+'<span class="ansPreLbl">FROM: </span>'
+					+'<span class="ansPre">( '+f.WE.toString()+' WE, '+f.SN.toString()+' SN, '+f.DU.toString()+' DU )</span>'
+					+'<span class="ansPreLbl"> facing </span>'
+					+'<span class="ansPre">'+(f.HD*180/Math.PI).toString()+'&deg;</span>'
+					+flipText
+					+'</div>';
+				// TO: line
+				htmlStr += '<div>'
+					+'<span class="ansPreLbl">&nbsp&nbsp;TO: </span>'
+					+'<span class="ansPre">( '+t.WE.toString()+' WE, '+t.SN.toString()+' SN, '+t.DU.toString()+' DU )</span>'
+					+'<span class="ansPreLbl"> facing </span>'
+					+'<span class="ansPre">'+(t.HD*180/Math.PI).toString()+'&deg;</span>'
+					+'</div>';
+				// Transformation parameters
+				htmlStr += '<div class="ans" id="parms">&nbsp;' + r + '&nbsp;<button style="margin: 0px 5px 0px 0px;" onclick="_copyParms(\' '+r+'\');">Copy</button></div>';
+				document.getElementById("result").innerHTML = htmlStr;
+
+				// done
+				return;
+			}
+			else { // "identical" to/from entries
+				errMsg = "Please provide distinctly different @loc entries.";
+			}
+		}
+		else { // bad QW
+			errMsg = "Please provide valid quaternion headings.";
+		}
+	}
+
+	// output error message feedback
+	document.getElementById("result").style.border = "1px solid red";
+	document.getElementById("result").style.backgroundColor = "#FFF0F0";
+	document.getElementById("result").innerHTML = "<span style='color: red; font-size: 12pt;'>" + errMsg + "</span>";
+}
+</script>
+</html>
